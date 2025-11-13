@@ -100,7 +100,7 @@ async fn save_cache_to_disk(buckets: &HashMap<String, SearchableBucket>) -> Resu
     let metadata = fs::metadata(&cache_file)
         .await
         .map_err(|e| format!("Failed to get cache file metadata: {}", e))?;
-
+    
     let size_mb = metadata.len() as f64 / (1024.0 * 1024.0);
     log::info!("Cache saved successfully: {:.2} MB", size_mb);
 
@@ -469,7 +469,7 @@ pub async fn get_cached_buckets(
 ) -> Result<HashMap<String, SearchableBucket>, String> {
     // First check memory cache
     {
-        let cache = BUCKET_CACHE.read().await;
+        let cache = (*BUCKET_CACHE).read().await;
         if !cache.is_empty() {
             log::debug!("Returning {} cached buckets from memory", cache.len());
             return Ok(cache.clone());
@@ -528,7 +528,7 @@ pub async fn get_cached_buckets(
 
     // Update memory cache
     {
-        let mut cache = BUCKET_CACHE.write().await;
+        let mut cache = (*BUCKET_CACHE).write().await;
         *cache = buckets.clone();
     }
 
@@ -544,7 +544,7 @@ pub async fn cache_exists() -> Result<bool, String> {
 // Clear cache (useful for testing or forced refresh)
 pub async fn clear_cache() {
     // Clear memory cache
-    let mut cache = BUCKET_CACHE.write().await;
+    let mut cache = (*BUCKET_CACHE).write().await;
     cache.clear();
 
     // Clear disk cache

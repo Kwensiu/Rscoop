@@ -489,7 +489,8 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
             fetch_options.remote_callbacks(callbacks);
 
             // Fetch latest changes
-            match remote.fetch(&[] as &[&str], Some(&mut fetch_options), None) {
+            let refspecs: &[&str] = &[];
+            match remote.fetch(refspecs, Some(&mut fetch_options), None) {
                 Ok(_) => {
                     // Get current branch
                     let head = match repo.head() {
