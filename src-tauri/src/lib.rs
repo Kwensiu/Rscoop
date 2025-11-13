@@ -198,6 +198,8 @@ pub fn run() {
             commands::debug::get_debug_info,
             commands::debug::get_app_logs,
             commands::debug::read_app_log_file,
+            commands::startup::is_auto_start_enabled,
+            commands::startup::set_auto_start_enabled,
             tray::refresh_tray_apps_menu
         ])
         .run(tauri::generate_context!())

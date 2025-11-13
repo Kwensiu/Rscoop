@@ -15,6 +15,7 @@ pub mod powershell;
 pub mod scoop;
 pub mod search;
 pub mod settings;
+pub mod startup;
 pub mod status;
 pub mod uninstall;
 pub mod update;

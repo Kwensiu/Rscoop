@@ -7,6 +7,7 @@ import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSe
 import HeldPackagesManagement from "../components/page/settings/HeldPackagesManagement";
 import AboutSection, { AboutSectionRef } from "../components/page/settings/AboutSection";
 import DebugSettings from "../components/page/settings/DebugSettings";
+import StartupSettings from "../components/page/settings/StartupSettings";
 import heldStore from "../stores/held";
 
 interface SettingsPageProps {
@@ -40,6 +41,7 @@ function SettingsPage(props: SettingsPageProps) {
 
                 <div class="space-y-8">
                     <ScoopConfiguration />
+                    <StartupSettings />
                     <VirusTotalSettings />
                     <HeldPackagesManagement
                         onUnhold={handleUnhold}
@@ -61,4 +63,4 @@ function SettingsPage(props: SettingsPageProps) {
     );
 }
 
-export default SettingsPage; 
+export default SettingsPage;
