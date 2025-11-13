@@ -13,11 +13,12 @@ export interface BucketInfo {
 
 let cachedBuckets: BucketInfo[] | null = null;
 let isFetching = false;
+let isForceRefreshing = false;
 const listeners: ((buckets: BucketInfo[]) => void)[] = [];
 
 export function useBuckets() {
   const [buckets, setBuckets] = createSignal<BucketInfo[]>(cachedBuckets || []);
-  const [loading, setLoading] = createSignal(!cachedBuckets);
+  const [loading, setLoading] = createSignal(!cachedBuckets || isForceRefreshing);
   const [error, setError] = createSignal<string | null>(null);
 
   const notifyListeners = (newBuckets: BucketInfo[]) => {
@@ -47,6 +48,11 @@ export function useBuckets() {
       return;
     }
 
+    // 设置强制刷新标志
+    if (forceRefresh) {
+      isForceRefreshing = true;
+    }
+
     setLoading(true);
     isFetching = true;
     setError(null);
@@ -62,6 +68,7 @@ export function useBuckets() {
       setError(err as string);
     } finally {
       isFetching = false;
+      isForceRefreshing = false;
       setLoading(false);
     }
   };
