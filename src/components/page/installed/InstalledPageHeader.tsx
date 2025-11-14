@@ -1,6 +1,6 @@
 import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
 import { 
-  Filter, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle, RefreshCw
+  Filter, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle, RefreshCw,
 } from 'lucide-solid';
 
 interface PackagesPageHeaderProps {
@@ -26,7 +26,7 @@ interface PackagesPageHeaderProps {
   onRefresh: () => void;
 }
 
-function PackagesPageHeader(props: PackagesPageHeaderProps) {
+function InstalledPageHeader(props: PackagesPageHeaderProps) {
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
   let searchContainerRef: HTMLDivElement | undefined;
   let searchInputRef: HTMLInputElement | undefined;
@@ -177,4 +177,4 @@ function PackagesPageHeader(props: PackagesPageHeaderProps) {
   );
 }
 
-export default PackagesPageHeader;
+export default InstalledPageHeader;
