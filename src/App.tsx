@@ -17,7 +17,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import installedPackagesStore from "./stores/installedPackagesStore";
 import { checkCwdMismatch } from "./utils/installCheck";
-import { BucketInfo } from "./hooks/useBuckets";
+import { BucketInfo, updateBucketsCache } from "./hooks/useBuckets";
 
 function App() {
     // Persist selected view across sessions.
@@ -187,6 +187,9 @@ function App() {
                             .then((buckets) => {
                                 if (buckets && buckets.length > 0) {
                                     console.log(`Preloaded ${buckets.length} buckets`);
+                                    
+                                    // Also update the buckets cache in the useBuckets hook
+                                    updateBucketsCache(buckets);
                                 }
                             })
                             .catch((err) => {

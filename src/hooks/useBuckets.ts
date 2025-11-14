@@ -16,6 +16,15 @@ let isFetching = false;
 let isForceRefreshing = false;
 const listeners: ((buckets: BucketInfo[]) => void)[] = [];
 
+// Add a function to update the cache from outside the hook
+export function updateBucketsCache(buckets: BucketInfo[] | null) {
+  cachedBuckets = buckets;
+  isForceRefreshing = false;
+  
+  // Notify all listeners of the cache update
+  listeners.forEach(listener => listener(buckets || []));
+}
+
 export function useBuckets() {
   const [buckets, setBuckets] = createSignal<BucketInfo[]>(cachedBuckets || []);
   const [loading, setLoading] = createSignal(!cachedBuckets || isForceRefreshing);
