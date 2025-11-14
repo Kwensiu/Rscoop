@@ -94,6 +94,7 @@ function InstalledPage(props: InstalledPageProps) {
         setViewMode={setViewMode}
         isCheckingForUpdates={isCheckingForUpdates}
         onCheckForUpdates={checkForUpdates}
+        onRefresh={fetchInstalledPackages}
       />
 
       <Show when={loading()}>
