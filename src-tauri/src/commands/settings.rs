@@ -185,3 +185,26 @@ pub fn set_virustotal_api_key(key: String) -> Result<(), String> {
     }
     write_scoop_config(&config)
 }
+
+/// Gets the proxy setting from Scoop's `config.json`.
+#[tauri::command]
+pub fn get_scoop_proxy() -> Result<Option<String>, String> {
+    let config = read_scoop_config()?;
+    Ok(config
+        .get("proxy")
+        .and_then(|v| v.as_str().map(String::from)))
+}
+
+/// Sets the proxy setting in Scoop's `config.json`.
+///
+/// If the proxy is an empty string, it removes the `proxy` field.
+#[tauri::command]
+pub fn set_scoop_proxy(proxy: String) -> Result<(), String> {
+    let mut config = read_scoop_config()?;
+    if proxy.is_empty() {
+        config.remove("proxy");
+    } else {
+        config.insert("proxy".to_string(), serde_json::json!(proxy));
+    }
+    write_scoop_config(&config)
+}
