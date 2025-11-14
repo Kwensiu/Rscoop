@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, onMount, Show} from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { useBuckets, type BucketInfo } from "../hooks/useBuckets";
 import { usePackageInfo } from "../hooks/usePackageInfo";
@@ -41,6 +41,7 @@ function BucketPage() {
   // Update state
   const [updatingBuckets, setUpdatingBuckets] = createSignal<Set<string>>(new Set());
   const [updateResults, setUpdateResults] = createSignal<{[key: string]: string}>({});
+  const [isUpdatingAll, setIsUpdatingAll] = createSignal(false);
 
   onMount(() => {
     fetchBuckets();
@@ -172,10 +173,18 @@ function BucketPage() {
         [bucketName]: result.message
       }));
       
+      // 立即清除更新状态，提升响应速度
+      setUpdatingBuckets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bucketName);
+        return newSet;
+      });
+      
       if (result.success) {
-        // Refresh bucket list to reflect any changes
+        // Refresh bucket list without showing loading screen
         markForRefresh();
-        await fetchBuckets(true);
+        // 使用quiet模式刷新，不显示加载状态
+        await fetchBuckets(true, true); // 添加quiet参数
         
         // If this bucket is currently selected, refresh its manifests
         const currentBucket = selectedBucket();
@@ -185,14 +194,23 @@ function BucketPage() {
       }
       
       console.log('Bucket update result:', result);
+      
+      // 2秒后清除结果消息，避免长时间显示
+      setTimeout(() => {
+        setUpdateResults(prev => {
+          const newResults = { ...prev };
+          delete newResults[bucketName];
+          return newResults;
+        });
+      }, 2000);
     } catch (error) {
       console.error('Failed to update bucket:', bucketName, error);
       setUpdateResults(prev => ({
         ...prev,
-        [bucketName]: `Failed to update: ${error}`
+        [bucketName]: `Failed to update: ${error instanceof Error ? error.message : String(error)}`
       }));
-    } finally {
-      // Remove from updating set
+      
+      // 错误情况下也立即清除更新状态
       setUpdatingBuckets(prev => {
         const newSet = new Set(prev);
         newSet.delete(bucketName);
@@ -203,13 +221,24 @@ function BucketPage() {
 
   // Handle updating all buckets
   const handleUpdateAllBuckets = async () => {
-    console.log('Updating all buckets...');
     const gitBuckets = buckets().filter(bucket => bucket.is_git_repo);
     
-    // Update all git buckets in parallel
-    await Promise.all(
-      gitBuckets.map(bucket => handleUpdateBucket(bucket.name))
-    );
+    // Set updating all flag to prevent full page reload
+    setIsUpdatingAll(true);
+    
+    try {
+      // Update all git buckets in parallel
+      await Promise.all(
+        gitBuckets.map(bucket => handleUpdateBucket(bucket.name))
+      );
+    } catch (error) {
+      console.error("Error updating all buckets:", error);
+    } finally {
+      // Clear updating all flag after a short delay to improve perceived performance
+      setTimeout(() => {
+        setIsUpdatingAll(false);
+      }, 300);
+    }
   };
 
   // Handle manual reload of local buckets
@@ -240,7 +269,7 @@ function BucketPage() {
             />
           </div>
         </div>
-
+        
         {/* Error State */}
         <Show when={error() && !isSearchActive()}>
           <div class="alert alert-error mb-4">
@@ -276,66 +305,56 @@ function BucketPage() {
           <div class={`transition-all duration-300 ${
             !isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           }`}>
-            <Show when={loading()} fallback={
-              <BucketGrid 
-                buckets={buckets()}
-                onViewBucket={handleViewBucket}
-                onRefresh={handleReloadLocalBuckets}
-                onUpdateBucket={handleUpdateBucket}
-                onUpdateAll={handleUpdateAllBuckets}
-                updatingBuckets={updatingBuckets()}
-                updateResults={updateResults()}
-                loading={loading()}
-              />
-            }>
-              <div class="flex items-center justify-center py-12">
-                <span class="loading loading-spinner loading-lg"></span>
-                <span class="ml-3 text-lg">Loading buckets...</span>
-              </div>
-            </Show>
+            <BucketGrid 
+              buckets={buckets()}
+              onViewBucket={handleViewBucket}
+              onRefresh={handleReloadLocalBuckets}
+              onUpdateBucket={handleUpdateBucket}
+              onUpdateAll={handleUpdateAllBuckets}
+              updatingBuckets={updatingBuckets()}
+              updateResults={updateResults()}
+              loading={loading() && !isUpdatingAll()} // Only show loading when not updating specific buckets
+            />
           </div>
         </Show>
       </div>
 
-      <BucketInfoModal
-        bucket={selectedBucket()}
-        manifests={manifests()}
-        manifestsLoading={manifestsLoading()}
-        error={null}
-        description={selectedBucketDescription()}
-        searchBucket={selectedSearchBucket() || undefined}
-        installedBuckets={buckets()}
-        onClose={closeModal}
-        onPackageClick={handlePackageClick}
-        onBucketInstalled={handleBucketInstalled}
-        onFetchManifests={handleFetchManifests}
-      />
-      
-      <PackageInfoModal
-        pkg={packageInfo.selectedPackage()}
-        info={packageInfo.info()}
-        loading={packageInfo.loading()}
-        error={packageInfo.error()}
-        onClose={packageInfo.closeModal}
-        onInstall={packageOperations.handleInstall}
-        onUninstall={packageOperations.handleUninstall}
-        showBackButton={true}
-        onPackageStateChanged={() => {
-          // Refresh bucket manifests to reflect installation changes
-          const currentBucket = selectedBucket();
-          if (currentBucket) {
-            handleFetchManifests(currentBucket.name);
-          }
-        }}
-      />
-      
-      <OperationModal
-        title={packageOperations.operationTitle()}
-        onClose={packageOperations.closeOperationModal}
-        isScan={packageOperations.isScanning()}
-        onInstallConfirm={packageOperations.handleInstallConfirm}
-        nextStep={packageOperations.operationNextStep() ?? undefined}
-      />
+      {/* Modals */}
+      <Show when={selectedBucket()}>
+        <BucketInfoModal
+          bucket={selectedBucket()!}
+          description={selectedBucketDescription()}
+          manifests={manifests()}
+          manifestsLoading={manifestsLoading()}
+          error={null}
+          searchBucket={selectedSearchBucket() || undefined}
+          onClose={closeModal}
+          onPackageClick={handlePackageClick}
+          onBucketInstalled={handleBucketInstalled}
+          onFetchManifests={(bucketName: string) => handleFetchManifests(bucketName)}
+        />
+      </Show>
+
+      <Show when={packageInfo.selectedPackage()}>
+        <PackageInfoModal
+          pkg={packageInfo.selectedPackage()!}
+          info={packageInfo.info()}
+          loading={packageInfo.loading()}
+          error={packageInfo.error()}
+          onClose={packageInfo.closeModal}
+          onInstall={(pkg: ScoopPackage) => packageOperations.handleInstall(pkg)}
+          onUninstall={(pkg: ScoopPackage) => packageOperations.handleUninstall(pkg)}
+          isPackageVersioned={() => false}
+        />
+      </Show>
+
+      <Show when={packageOperations.operationTitle()}>
+        <OperationModal
+          title={packageOperations.operationTitle()!}
+          onClose={() => {}}
+          nextStep={packageOperations.operationNextStep() || undefined}
+        />
+      </Show>
     </div>
   );
 }

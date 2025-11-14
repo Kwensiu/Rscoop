@@ -218,7 +218,7 @@ export function useBucketSearch() {
   };
 
   // Debounced search effect like in useSearch.ts
-  let debounceTimer: number;
+  let debounceTimer: NodeJS.Timeout;
   const handleSearch = async () => {
     if (searchQuery().trim() === "") {
       await clearSearch();

@@ -1,6 +1,7 @@
 import { Show } from "solid-js";
 import { RefreshCw, Eye } from "lucide-solid";
 import { BucketInfo } from "../../../hooks/useBuckets";
+import { openPath } from '@tauri-apps/plugin-opener';
 
 interface BucketCardProps {
   bucket: BucketInfo;
@@ -44,9 +45,14 @@ function BucketCard(props: BucketCardProps) {
             </div>
           </Show>
         </div>
+
         
         <Show when={props.bucket.git_url}>
-          <div class="text-xs text-base-content/40 mt-2 truncate font-mono bg-base-100 px-2 py-1 rounded">
+          <div 
+            class="text-xs text-base-content/40 mt-2 truncate font-mono bg-base-100 px-2 py-1 rounded cursor-pointer hover:underline"
+            onClick={() => openPath(props.bucket.git_url!)}
+            title={props.bucket.git_url}
+          >
             {props.bucket.git_url}
           </div>
         </Show>

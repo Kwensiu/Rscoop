@@ -16,7 +16,7 @@ export function useSearch() {
     const packageOperations = usePackageOperations();
     const packageInfo = usePackageInfo();
 
-    let debounceTimer: number;
+    let debounceTimer: NodeJS.Timeout;
 
     const handleSearch = async () => {
         if (searchTerm().trim() === "") {

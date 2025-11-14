@@ -1,4 +1,4 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createSignal, onCleanup} from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface BucketInfo {
@@ -9,6 +9,16 @@ export interface BucketInfo {
   git_url?: string;
   git_branch?: string;
   last_updated?: string;
+}
+
+interface UseBucketsReturn {
+  buckets: () => BucketInfo[];
+  loading: () => boolean;
+  error: () => string | null;
+  fetchBuckets: (forceRefresh?: boolean, quiet?: boolean) => Promise<void>;
+  markForRefresh: () => void;
+  getBucketInfo: (bucketName: string) => Promise<BucketInfo | null>;
+  getBucketManifests: (bucketName: string) => Promise<string[]>;
 }
 
 let cachedBuckets: BucketInfo[] | null = null;
@@ -25,7 +35,7 @@ export function updateBucketsCache(buckets: BucketInfo[] | null) {
   listeners.forEach(listener => listener(buckets || []));
 }
 
-export function useBuckets() {
+export function useBuckets(): UseBucketsReturn {
   const [buckets, setBuckets] = createSignal<BucketInfo[]>(cachedBuckets || []);
   const [loading, setLoading] = createSignal(!cachedBuckets || isForceRefreshing);
   const [error, setError] = createSignal<string | null>(null);
@@ -46,14 +56,16 @@ export function useBuckets() {
 
   let shouldRefreshCache = false;
 
-  const fetchBuckets = async (forceRefresh = false) => {
+  const fetchBuckets = async (forceRefresh = false, quiet = false) => {
     if (isFetching && !forceRefresh) {
       return;
     }
 
     if (cachedBuckets && !forceRefresh && !shouldRefreshCache) {
       setBuckets(cachedBuckets);
-      setLoading(false);
+      if (!quiet) {
+        setLoading(false);
+      }
       return;
     }
 
@@ -62,7 +74,9 @@ export function useBuckets() {
       isForceRefreshing = true;
     }
 
-    setLoading(true);
+    if (!quiet) {
+      setLoading(true);
+    }
     isFetching = true;
     setError(null);
     
@@ -78,7 +92,9 @@ export function useBuckets() {
     } finally {
       isFetching = false;
       isForceRefreshing = false;
-      setLoading(false);
+      if (!quiet) {
+        setLoading(false);
+      }
     }
   };
 

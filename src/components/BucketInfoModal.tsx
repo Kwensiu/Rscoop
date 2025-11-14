@@ -6,7 +6,7 @@ import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
-import { MoreHorizontal, GitBranch, ExternalLink, Download, Trash2, Loader2 } from "lucide-solid";
+import { MoreHorizontal, GitBranch, ExternalLink, Download, Trash2, Loader2, FolderOpen, RefreshCw } from "lucide-solid";
 import { openUrl, openPath } from '@tauri-apps/plugin-opener';
 
 hljs.registerLanguage('bash', bash);
@@ -226,7 +226,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                           }
                         }
                       }}>
-                        <ExternalLink class="w-4 h-4 mr-2" />
+                        <FolderOpen class="w-4 h-4 mr-2" />
                         Open in Explorer
                       </button>
                     </li>
@@ -234,6 +234,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                   <Show when={isInstalled()}>
                     <li>
                       <button type="button" onClick={(e) => { e.stopPropagation(); /* TODO: Refresh Bucket */ }}>
+                        <RefreshCw class="w-4 h-4 mr-2" />
                         Refresh Bucket
                       </button>
                     </li>
@@ -255,6 +256,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                       disabled={!props.bucket?.git_url && !props.searchBucket?.url}
                       class={(!props.bucket?.git_url && !props.searchBucket?.url) ? "text-base-content/50" : ""}
                     >
+                      <ExternalLink class="w-4 h-4 mr-2" />
                       View on GitHub
                     </button>
                   </li>
@@ -335,7 +337,20 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                                   {formatDate(value as string)}
                                 </Match>
                                 <Match when={key === 'Path'}>
-                                  <div class="text-xs font-mono break-all">
+                                  <div 
+                                    class="text-xs font-mono break-all cursor-pointer hover:underline text-blue-500"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (props.bucket?.path) {
+                                        try {
+                                          await openPath(props.bucket.path);
+                                        } catch (error) {
+                                          console.error('Failed to open path:', error);
+                                        }
+                                      }
+                                    }}
+                                    title={`Click to open ${value} in Explorer`}
+                                  >
                                     {value}
                                   </div>
                                 </Match>
