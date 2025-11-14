@@ -3,8 +3,37 @@ import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage } from "../types/scoop";
 import { usePackageOperations } from "./usePackageOperations";
 import { usePackageInfo } from "./usePackageInfo";
+import { OperationNextStep } from "../types/operations";
 
-export function useSearch() {
+interface UseSearchReturn {
+  searchTerm: () => string;
+  setSearchTerm: (term: string) => void;
+  loading: () => boolean;
+  activeTab: () => "packages" | "includes";
+  setActiveTab: (tab: "packages" | "includes") => void;
+  resultsToShow: () => ScoopPackage[];
+  packageResults: () => ScoopPackage[];
+  binaryResults: () => ScoopPackage[];
+  
+  // From usePackageInfo
+  selectedPackage: () => ScoopPackage | null;
+  info: () => ScoopPackage | null;
+  infoLoading: () => boolean;
+  infoError: () => string | null;
+  fetchPackageInfo: (pkg: ScoopPackage) => Promise<void>;
+  closeModal: () => void;
+  
+  // From usePackageOperations (with enhanced closeOperationModal)
+  operationTitle: () => string | null;
+  operationNextStep: () => OperationNextStep | null;
+  isScanning: () => boolean;
+  handleInstall: (pkg: ScoopPackage) => void;
+  handleUninstall: (pkg: ScoopPackage) => void;
+  handleInstallConfirm: () => void;
+  closeOperationModal: (wasSuccess: boolean) => void;
+}
+
+export function useSearch(): UseSearchReturn {
     const [searchTerm, setSearchTerm] = createSignal("");
     const [results, setResults] = createSignal<ScoopPackage[]>([]);
     const [loading, setLoading] = createSignal(false);
@@ -16,7 +45,7 @@ export function useSearch() {
     const packageOperations = usePackageOperations();
     const packageInfo = usePackageInfo();
 
-    let debounceTimer: NodeJS.Timeout;
+    let debounceTimer: ReturnType<typeof setTimeout>;
 
     const handleSearch = async () => {
         if (searchTerm().trim() === "") {
@@ -77,7 +106,7 @@ export function useSearch() {
         
         // From usePackageInfo
         selectedPackage: packageInfo.selectedPackage,
-        info: packageInfo.info,
+        info: packageInfo.info as unknown as (() => ScoopPackage | null), // Type assertion to fix the mismatch
         infoLoading: packageInfo.loading,
         infoError: packageInfo.error,
         fetchPackageInfo: packageInfo.fetchPackageInfo,

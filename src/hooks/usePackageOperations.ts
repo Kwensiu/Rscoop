@@ -5,7 +5,20 @@ import { OperationNextStep } from "../types/operations";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import settingsStore from "../stores/settings";
 
-export function usePackageOperations() {
+interface UsePackageOperationsReturn {
+  operationTitle: () => string | null;
+  operationNextStep: () => OperationNextStep | null;
+  isScanning: () => boolean;
+  pendingInstallPackage: () => ScoopPackage | null;
+  handleInstall: (pkg: ScoopPackage) => void;
+  handleInstallConfirm: () => void;
+  handleUninstall: (pkg: ScoopPackage) => void;
+  handleUpdate: (pkg: ScoopPackage) => void;
+  handleUpdateAll: () => void;
+  closeOperationModal: (wasSuccess: boolean) => void;
+}
+
+export function usePackageOperations(): UsePackageOperationsReturn {
     const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
     const [operationNextStep, setOperationNextStep] = createSignal<OperationNextStep | null>(null);
     const [isScanning, setIsScanning] = createSignal(false);
@@ -106,4 +119,4 @@ export function usePackageOperations() {
         handleUpdateAll,
         closeOperationModal,
     };
-} 
+}

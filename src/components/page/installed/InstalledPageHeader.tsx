@@ -1,6 +1,6 @@
 import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
 import { 
-  Filter, Eye, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle, RefreshCw
+  Filter, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle, RefreshCw
 } from 'lucide-solid';
 
 interface InstalledPageHeaderProps {

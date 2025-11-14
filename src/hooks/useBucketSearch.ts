@@ -1,5 +1,6 @@
 import { createSignal, createResource, createEffect, on } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { Resource } from "solid-js";
 
 export interface SearchableBucket {
   name: string;
@@ -35,7 +36,50 @@ export interface ExpandedSearchInfo {
   description: string;
 }
 
-export function useBucketSearch() {
+interface UseBucketSearchReturn {
+  // State
+  searchQuery: () => string;
+  setSearchQuery: (query: string) => void;
+  includeExpanded: () => boolean;
+  setIncludeExpanded: (include: boolean) => void;
+  sortBy: () => string;
+  setSortBy: (sort: string) => void;
+  maxResults: () => number;
+  setMaxResults: (max: number) => void;
+  disableChineseBuckets: () => boolean;
+  setDisableChineseBuckets: (disable: boolean) => void;
+  minimumStars: () => number;
+  setMinimumStars: (stars: number) => void;
+  
+  // Results
+  searchResults: () => SearchableBucket[];
+  totalCount: () => number;
+  isExpandedSearch: () => boolean;
+  expandedListSizeMb: () => number | undefined;
+  isSearching: () => boolean;
+  error: () => string | null;
+  cacheExists: () => boolean;
+  
+  // Default buckets
+  defaultBuckets: Resource<SearchableBucket[]>;
+  
+  // Actions
+  searchBuckets: (
+    query?: string, 
+    includeExpanded?: boolean, 
+    maxResults?: number, 
+    sortBy?: string, 
+    disableChineseBuckets?: boolean, 
+    minimumStars?: number
+  ) => Promise<BucketSearchResponse | undefined>;
+  clearSearch: () => Promise<void>;
+  loadDefaults: () => Promise<void>;
+  disableExpandedSearch: () => Promise<void>;
+  checkCacheStatus: () => Promise<boolean>;
+  getExpandedSearchInfo: () => Promise<ExpandedSearchInfo | null>;
+}
+
+export function useBucketSearch(): UseBucketSearchReturn {
   const [searchQuery, setSearchQuery] = createSignal<string>("");
   const [includeExpanded, setIncludeExpanded] = createSignal(false);
   const [sortBy, setSortBy] = createSignal<string>("stars"); // Default to stars instead of relevance
@@ -113,26 +157,34 @@ export function useBucketSearch() {
   // Perform search
   const searchBuckets = async (
     query?: string,
-    useExpanded?: boolean,
-    maxRes?: number,
-    sort?: string,
-    disableChinese?: boolean,
-    minStars?: number
-  ) => {
+    includeExpandedParam?: boolean,
+    maxResultsParam?: number,
+    sortByParam?: string,
+    disableChineseBucketsParam?: boolean,
+    minimumStarsParam?: number
+  ): Promise<BucketSearchResponse | undefined> => {
     setIsSearching(true);
     setError(null);
-
+    
+    const actualIncludeExpanded = includeExpandedParam !== undefined ? includeExpandedParam : includeExpanded();
+    const actualMaxResults = maxResultsParam !== undefined ? maxResultsParam : maxResults();
+    const actualSortBy = sortByParam !== undefined ? sortByParam : sortBy();
+    const actualDisableChineseBuckets = disableChineseBucketsParam !== undefined ? disableChineseBucketsParam : disableChineseBuckets();
+    const actualMinimumStars = minimumStarsParam !== undefined ? minimumStarsParam : minimumStars();
+    
     try {
       const request: BucketSearchRequest = {
-        query: query || searchQuery(),
-        include_expanded: useExpanded !== undefined ? useExpanded : includeExpanded(),
-        max_results: maxRes || maxResults(),
-        sort_by: sort || sortBy(),
-        disable_chinese_buckets: disableChinese !== undefined ? disableChinese : disableChineseBuckets(),
-        minimum_stars: minStars !== undefined ? minStars : minimumStars(),
+        query,
+        include_expanded: actualIncludeExpanded,
+        max_results: actualMaxResults,
+        sort_by: actualSortBy,
+        disable_chinese_buckets: actualDisableChineseBuckets,
+        minimum_stars: actualMinimumStars,
       };
-
-      const response = await invoke<BucketSearchResponse>("search_buckets", { request });
+      
+      const response = await invoke<BucketSearchResponse>("search_buckets", {
+        request,
+      });
       
       setSearchResults(response.buckets);
       setTotalCount(response.total_count);
@@ -148,7 +200,8 @@ export function useBucketSearch() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       setError(errorMsg);
-      return null;
+      console.error("Bucket search failed:", errorMsg);
+      return undefined;
     } finally {
       setIsSearching(false);
     }
@@ -157,46 +210,49 @@ export function useBucketSearch() {
   // Clear search and return to defaults
   const clearSearch = async () => {
     setSearchQuery("");
+    setSearchResults([]);
+    setTotalCount(0);
     setError(null);
-    const defaults = defaultBuckets();
-    if (defaults) {
-      setSearchResults(defaults);
-      setTotalCount(defaults.length);
-      setIsExpandedSearch(false);
-      setExpandedListSizeMb(undefined);
-    }
+    setIsExpandedSearch(false);
+    setExpandedListSizeMb(undefined);
+    
+    // Reload default buckets
+    await loadDefaults();
   };
 
   // Disable expanded search and clear cache
-  const disableExpandedSearch = async (): Promise<boolean> => {
+  const disableExpandedSearch = async () => {
+    console.log("Disabling expanded search and clearing cache...");
     try {
       await invoke("clear_bucket_cache");
+      setCacheExists(false);
       setIncludeExpanded(false);
       setIsExpandedSearch(false);
       setExpandedListSizeMb(undefined);
-      setCacheExists(false);
+      setSearchQuery("");
+      setSearchResults([]);
+      setTotalCount(0);
       
       // Reload default buckets
       await loadDefaults();
-      return true;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       setError(errorMsg);
-      return false;
+      console.error("Failed to disable expanded search:", errorMsg);
     }
   };
 
   // Load defaults explicitly (for when search is reopened)
   const loadDefaults = async () => {
-    setError(null);
-    setSortBy("stars"); // Ensure we're using stars sorting for defaults
     try {
-      // Check if cache exists first
+      console.log("Loading default buckets...");
+      
+      // Check cache status first
       const cacheExistsStatus = await checkCacheStatus();
       
       if (cacheExistsStatus) {
-        // Cache exists, load expanded results and ensure we're in expanded mode
-        console.log("Loading expanded results from cache...");
+        // If cache exists, load expanded results immediately with stars sorting
+        console.log("Cache exists, loading expanded search results...");
         setIncludeExpanded(true); // Ensure expanded search is enabled
         await searchBuckets(undefined, true, undefined, "stars"); // Explicit stars sorting
       } else {
@@ -208,12 +264,10 @@ export function useBucketSearch() {
         setTotalCount(buckets.length);
         setIsExpandedSearch(false);
         setExpandedListSizeMb(undefined);
-        return buckets;
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       setError(errorMsg);
-      return [];
     }
   };
 

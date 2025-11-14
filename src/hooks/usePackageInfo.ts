@@ -2,7 +2,16 @@ import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
 
-export function usePackageInfo() {
+interface UsePackageInfoReturn {
+  selectedPackage: () => ScoopPackage | null;
+  info: () => ScoopInfo | null;
+  loading: () => boolean;
+  error: () => string | null;
+  fetchPackageInfo: (pkg: ScoopPackage) => Promise<void>;
+  closeModal: () => void;
+}
+
+export function usePackageInfo(): UsePackageInfoReturn {
     const [selectedPackage, setSelectedPackage] = createSignal<ScoopPackage | null>(null);
     const [info, setInfo] = createSignal<ScoopInfo | null>(null);
     const [loading, setLoading] = createSignal(false);
@@ -46,4 +55,4 @@ export function usePackageInfo() {
         fetchPackageInfo,
         closeModal,
     };
-} 
+}
