@@ -1,12 +1,15 @@
-import { createSignal, onMount, createMemo, Show } from "solid-js";
+import { createSignal, onMount, createMemo, Show, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { openPath } from "@tauri-apps/plugin-opener"; // 添加openPath导入
+import { openPath } from "@tauri-apps/plugin-opener";
 import Checkup, { CheckupItem } from "../components/page/doctor/Checkup";
 import Cleanup from "../components/page/doctor/Cleanup";
 import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
-import OperationModal from "../components/OperationModal";
+import FloatingOperationPanel from "../components/FloatingOperationPanel";
 import installedPackagesStore from "../stores/installedPackagesStore";
+
+const CACHE_DIR = "cache";
+const SHIMS_DIR = "shims";
 
 function DoctorPage() {
     const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
@@ -17,9 +20,13 @@ function DoctorPage() {
     const [isCheckupLoading, setIsCheckupLoading] = createSignal(true);
     const [checkupError, setCheckupError] = createSignal<string | null>(null);
     const [isRetrying, setIsRetrying] = createSignal(false);
+    const [activeOperations, setActiveOperations] = createSignal<Set<string>>(new Set());
 
     // Logic for running checkup, now in the parent component
     const runCheckup = async (isRetry = false) => {
+        const operationId = 'checkup';
+        setActiveOperations(prev => new Set(prev).add(operationId));
+        
         if (isRetry) {
             setIsRetrying(true);
         } else {
@@ -35,6 +42,11 @@ function DoctorPage() {
             setCheckupError("Could not run sfsu checkup. Please ensure 'sfsu' is installed and accessible in your PATH.");
             setCheckupResult([]);
         } finally {
+            setActiveOperations(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(operationId);
+                return newSet;
+            });
             if (isRetry) {
                 setIsRetrying(false);
             } else {
@@ -43,7 +55,9 @@ function DoctorPage() {
         }
     };
 
-    onMount(runCheckup);
+    onMount(() => {
+        runCheckup();
+    });
 
     // Derived state to determine if checkup requires attention
     const needsAttention = createMemo(() => {
@@ -56,22 +70,45 @@ function DoctorPage() {
 
     const handleInstallHelper = async (helperId: string) => {
         setInstallingHelper(helperId);
+        const operationId = `install-${helperId}`;
+        setActiveOperations(prev => new Set(prev).add(operationId));
         try {
             await invoke("install_package", { packageName: helperId, bucket: '' });
             await runCheckup();
             installedPackagesStore.refetch();
         } catch (err) {
-            console.error(`Failed to install ${helperId}:`, err);
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error(`Failed to install ${helperId}:`, errorMsg);
         } finally {
+            setActiveOperations(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(operationId);
+                return newSet;
+            });
             setInstallingHelper(null);
         }
     };
 
-    const runOperation = (title: string, command: Promise<any>) => {
+    const runOperation = (title: string, command: Promise<any>, operationId: string) => {
+        if (activeOperations().has(operationId)) {
+            return;
+        }
+        
+        setActiveOperations(prev => new Set(prev).add(operationId));
         setOperationTitle(title);
-        command.catch(err => {
-            console.error(`Operation "${title}" failed:`, err);
+        command.then(() => {
+            // Operation succeeded
+            console.log(`Operation "${title}" completed successfully`);
+        }).catch(err => {
+            // Operation failed
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error(`Operation "${title}" failed:`, errorMsg);
         }).finally(() => {
+            setActiveOperations(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(operationId);
+                return newSet;
+            });
             // Modal closure is handled by its own event
         });
     };
@@ -79,26 +116,43 @@ function DoctorPage() {
     const handleCleanupApps = () => {
         runOperation(
             "Cleaning up old app versions...",
-            invoke("cleanup_all_apps")
+            invoke("cleanup_all_apps"),
+            "cleanup-apps"
         );
     };
 
     const handleCleanupCache = () => {
         runOperation(
             "Cleaning up outdated cache...",
-            invoke("cleanup_outdated_cache")
+            invoke("cleanup_outdated_cache"),
+            "cleanup-cache"
         );
     };
     
-    const handleCloseOperationModal = () => {
+    const handleCloseOperationModal = (wasSuccess: boolean) => {
         setOperationTitle(null);
+        if (wasSuccess) {
+            runCheckup();
+        }
     };
     
-    // 添加打开缓存目录的函数
+    const getScoopSubPath = (subPath: string) => {
+        return async () => {
+            try {
+                const scoopPath = await invoke<string>("get_scoop_path");
+                return `${scoopPath}\\${subPath}`;
+            } catch (err) {
+                const errorMsg = err instanceof Error ? err.message : String(err);
+                console.error(`Failed to get scoop path for ${subPath}:`, errorMsg);
+                throw err;
+            }
+        };
+    };
+    
     const handleOpenCacheDirectory = async () => {
         try {
-            const scoopPath = await invoke<string>("get_scoop_path");
-            const cachePath = `${scoopPath}\\cache`;
+            const getPath = getScoopSubPath(CACHE_DIR);
+            const cachePath = await getPath();
             console.log("Attempting to open cache directory:", cachePath);
             await openPath(cachePath);
         } catch (err) {
@@ -106,11 +160,10 @@ function DoctorPage() {
         }
     };
     
-    // 添加打开shim目录的函数
     const handleOpenShimDirectory = async () => {
         try {
-            const scoopPath = await invoke<string>("get_scoop_path");
-            const shimPath = `${scoopPath}\\shims`;
+            const getPath = getScoopSubPath(SHIMS_DIR);
+            const shimPath = await getPath();
             console.log("Attempting to open shim directory:", shimPath);
             await openPath(shimPath);
         } catch (err) {
@@ -118,61 +171,50 @@ function DoctorPage() {
         }
     };
     
-    return (
-        <>
-            <div class="p-4 sm:p-6 md:p-8">
-                <h1 class="text-3xl font-bold mb-6">Scoop Doctor</h1>
-                
-                <div class="space-y-8">
-                    <Show when={needsAttention()}>
-                        <Checkup
-                            checkupResult={checkupResult()}
-                            isLoading={isCheckupLoading()}
-                            isRetrying={isRetrying()}
-                            error={checkupError()}
-                            onRerun={() => runCheckup(true)}
-                            onInstallHelper={handleInstallHelper}
-                            installingHelper={installingHelper()}
-                        />
-                    </Show>
-                    
-                    <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-2xl font-bold">Scoop Cleanup</h2>
-                        </div>
-                        <Cleanup 
-                            onCleanupApps={handleCleanupApps}
-                            onCleanupCache={handleCleanupCache}
-                        />
-                    </div>
-                    
-                    <div>
-                        <CacheManager onOpenDirectory={handleOpenCacheDirectory} />
-                    </div>
-                    
-                    <div>
-                        <ShimManager onOpenDirectory={handleOpenShimDirectory} />
-                    </div>
-
-                    <Show when={!needsAttention()}>
-                         <Checkup
-                            checkupResult={checkupResult()}
-                            isLoading={isCheckupLoading()}
-                            isRetrying={isRetrying()}
-                            error={checkupError()}
-                            onRerun={() => runCheckup(true)}
-                            onInstallHelper={handleInstallHelper}
-                            installingHelper={installingHelper()}
-                        />
-                    </Show>
-                </div>
-            </div>
-            <OperationModal 
-                title={operationTitle()}
-                onClose={handleCloseOperationModal}
-            />
-        </>
+    onCleanup(() => {
+        setActiveOperations(new Set<string>());
+    });
+    
+    const checkupComponent = (
+        <Checkup
+            checkupResult={checkupResult()}
+            isLoading={isCheckupLoading()}
+            isRetrying={isRetrying()}
+            error={checkupError()}
+            onRerun={() => runCheckup(true)}
+            onInstallHelper={handleInstallHelper}
+            installingHelper={installingHelper()}
+        />
     );
+
+  return (
+    <>
+      <div class="p-4 sm:p-6 md:p-8">
+        <h1 class="text-3xl font-bold mb-6">System Doctor</h1>
+        
+        <div class="space-y-8">
+          <Show when={needsAttention()}>
+            {checkupComponent}
+          </Show>
+          
+          <Cleanup 
+            onCleanupApps={handleCleanupApps}
+            onCleanupCache={handleCleanupCache}
+          />
+          <CacheManager onOpenDirectory={handleOpenCacheDirectory} />
+          <ShimManager onOpenDirectory={handleOpenShimDirectory} />
+
+          <Show when={!needsAttention() && (isCheckupLoading() || checkupResult().length > 0 || checkupError())}>
+               {checkupComponent}
+          </Show>
+        </div>
+      </div>
+      <FloatingOperationPanel 
+        title={operationTitle()}
+        onClose={handleCloseOperationModal}
+      />
+    </>
+  );
 }
 
 export default DoctorPage;

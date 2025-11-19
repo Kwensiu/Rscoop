@@ -206,6 +206,11 @@ function InstalledPage(props: InstalledPageProps) {
           <div class="text-sm text-base-content/70 mt-2">
             Current bucket: {currentPackageForBucketChange()?.source}
           </div>
+          <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">
+            <p class="text-xs text-info-content/85">
+              <strong class="text-yellow-800 dark:text-yellow-200">Warning:</strong> Ensure the software package is present in the target repository.
+            </p>
+          </div>
         </ConfirmationModal>
       </Show>
 

@@ -1,6 +1,6 @@
 import { createSignal, onMount, Show, createEffect } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { ShieldCheck, KeyRound, Save, AlertCircle } from "lucide-solid";
+import { ShieldCheck, Save, AlertCircle } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 
 export default function VirusTotalSettings() {
@@ -101,12 +101,6 @@ export default function VirusTotalSettings() {
                 </p>
 
                 <div class="form-control w-full max-w-lg">
-                    <label class="label">
-                        <span class="label-text font-semibold flex items-center">
-                            <KeyRound class="w-4 h-4 mr-2" />
-                            VirusTotal API Key
-                        </span>
-                    </label>
                     <div class="join">
                         <input 
                             type="password"

@@ -1,6 +1,6 @@
 import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { FolderCog, Save, RefreshCw, CheckCircle } from "lucide-solid";
+import { FolderCog, RefreshCw} from "lucide-solid";
 
 export default function ScoopConfiguration() {
     const [scoopPath, setScoopPath] = createSignal("");
@@ -64,7 +64,7 @@ export default function ScoopConfiguration() {
     // Validate path format
     const validatePath = (path: string) => {
         // Simple validation to check if path contains invalid characters
-        const invalidChars = /[<>:"|?*]/;
+        const invalidChars = /[<>|"?*]/;
         const isValid = !invalidChars.test(path) && path.length > 0;
         setIsValidPath(isValid);
         return isValid;
@@ -114,17 +114,7 @@ export default function ScoopConfiguration() {
                             onClick={handleSavePath} 
                             disabled={pathIsLoading() || isDetecting() || isSaving() || !isValidPath()}
                         >
-                            {isSaving() ? (
-                                <>
-                                    <span class="loading loading-spinner loading-xs"></span>
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save class="w-4 h-4 mr-1" />
-                                    Save
-                                </>
-                            )}
+                            Save
                         </button>
                         <button 
                             class={`btn join-item ${isDetecting() ? 'btn-info' : 'btn-info'}`} 
@@ -135,17 +125,6 @@ export default function ScoopConfiguration() {
                             Auto-detect
                         </button>
                     </div>
-                    {!isValidPath() && scoopPath() && (
-                        <div class="text-sm text-error mt-2">
-                            Invalid path: contains illegal characters
-                        </div>
-                    )}
-                    {isValidPath() && scoopPath() && (
-                        <div class="text-sm text-success flex items-center mt-2">
-                            <CheckCircle class="w-4 h-4 mr-1" />
-                            Path format is valid
-                        </div>
-                    )}
                     <div class="text-sm text-base-content/70 mt-2">
                         Automatically detects Scoop installation directory from the SCOOP environment variable.
                     </div>

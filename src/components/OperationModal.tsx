@@ -3,6 +3,7 @@ import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
 import { ShieldAlert, AlertTriangle, ExternalLink } from "lucide-solid";
+import { isErrorLine } from "../utils/errorDetection";
 
 // Shared types for backend operations
 interface OperationOutput {
@@ -17,29 +18,42 @@ interface OperationResult {
 }
 
 // Helper component to find and render links in a line of text
-const LineWithLinks: Component<{ line: string }> = (props) => {
+const LineWithLinks: Component<{ line: string; isError?: boolean }> = (props) => {
   // This regex is designed to strip ANSI color codes from the string.
-  const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+  const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-Za-z\[\]\\`_=@:;,.?!#$%&*+\-^_|~<>]/g;
   const cleanLine = props.line.replace(ansiRegex, '');
   
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = cleanLine.split(urlRegex);
+  
+  // Check if line should be displayed as error
+  const isError = props.isError || isErrorLine(cleanLine, false);
+  const linkClass = isError ? "link link-error" : "link link-info";
+  const textColorClass = isError ? "text-red-400" : "";
+  
+  const renderContent = () => {
+    if (cleanLine.match(urlRegex)) {
+      return (
+        <For each={cleanLine.split(urlRegex)}>
+          {(part) => {
+            if (part.match(urlRegex)) {
+              return (
+                <a href={part} target="_blank" class={`${linkClass} inline-flex items-center`}>
+                  {part}
+                  <ExternalLink class="w-3 h-3 ml-1" />
+                </a>
+              );
+            }
+            return <span>{part}</span>;
+          }}
+        </For>
+      );
+    }
+    return <span>{cleanLine}</span>;
+  };
 
   return (
-    <span>
-      <For each={parts}>
-        {(part) => {
-          if (part.match(urlRegex)) {
-            return (
-              <a href={part} target="_blank" class="link link-info inline-flex items-center">
-                {part}
-                <ExternalLink class="w-3 h-3 ml-1" />
-              </a>
-            );
-          }
-          return <span>{part}</span>;
-        }}
-      </For>
+    <span class={`font-mono ${textColorClass}`}>
+      {renderContent()}
     </span>
   );
 };
@@ -66,34 +80,39 @@ function OperationModal(props: OperationModalProps) {
   
   // This effect now correctly manages the lifecycle of the listeners
   createEffect(() => {
-    let outputListener: UnlistenFn | undefined;
-    let standardResultListener: UnlistenFn | undefined;
-    let vtResultListener: UnlistenFn | undefined;
+    const listeners: UnlistenFn[] = [];
 
     const setupListeners = async () => {
-      // Common output listener for all operations
-      outputListener = await listen<OperationOutput>("operation-output", (event) => {
-        setOutput(prev => [...prev, event.payload]);
-      });
+      try {
+        // Common output listener for all operations
+        const outputListener = await listen<OperationOutput>("operation-output", (event) => {
+          setOutput(prev => [...prev, event.payload]);
+        });
+        listeners.push(outputListener);
 
-      if (props.isScan) {
-        // Listen for the special VirusTotal result event
-        vtResultListener = await listen<VirustotalResult>("virustotal-scan-finished", (event) => {
-          if (event.payload.detections_found || event.payload.is_api_key_missing) {
-            setScanWarning(event.payload);
-          } else {
-            // If scan is clean, proceed immediately
-            props.onInstallConfirm?.();
-          }
-        });
-      } else {
-        // Standard listener for install, update, etc.
-        standardResultListener = await listen<OperationResult>("operation-finished", (event) => {
-          setResult(event.payload);
-          if (event.payload.success && props.nextStep) {
-            setShowNextStep(true);
-          }
-        });
+        if (props.isScan) {
+          // Listen for the special VirusTotal result event
+          const vtResultListener = await listen<VirustotalResult>("virustotal-scan-finished", (event) => {
+            if (event.payload.detections_found || event.payload.is_api_key_missing) {
+              setScanWarning(event.payload);
+            } else {
+              // If scan is clean, proceed immediately
+              props.onInstallConfirm?.();
+            }
+          });
+          listeners.push(vtResultListener);
+        } else {
+          // Standard listener for install, update, etc.
+          const standardResultListener = await listen<OperationResult>("operation-finished", (event) => {
+            setResult(event.payload);
+            if (event.payload.success && props.nextStep) {
+              setShowNextStep(true);
+            }
+          });
+          listeners.push(standardResultListener);
+        }
+      } catch (error) {
+        console.error("Failed to set up event listeners:", error);
       }
     };
 
@@ -109,16 +128,24 @@ function OperationModal(props: OperationModalProps) {
 
     // This cleanup runs whenever the effect re-runs or the component is unmounted.
     onCleanup(() => {
-      outputListener?.();
-      standardResultListener?.();
-      vtResultListener?.();
+      listeners.forEach(unlisten => {
+        try {
+          unlisten();
+        } catch (error) {
+          console.error("Failed to remove listener:", error);
+        }
+      });
     });
   });
 
   // Effect to auto-scroll the output view
   createEffect(() => {
     if (scrollRef) {
-      scrollRef.scrollTop = scrollRef.scrollHeight;
+      // Only scroll if we're near the bottom
+      const isNearBottom = scrollRef.scrollHeight - scrollRef.scrollTop <= scrollRef.clientHeight + 100;
+      if (isNearBottom) {
+        scrollRef.scrollTop = scrollRef.scrollHeight;
+      }
     }
   });
 
@@ -148,20 +175,25 @@ function OperationModal(props: OperationModalProps) {
     }
   };
 
+  // Determine if the operation is still running
+  // const isOperationRunning = () => {
+  //   return !result() && !scanWarning() && props.title;
+  // };
+
   return (
     <Show when={!!props.title}>
       <div class="modal modal-open backdrop-blur-sm" role="dialog">
         <div class="modal-box w-11/12 max-w-5xl mx-auto">
           <h3 class="font-bold text-lg">{props.title}</h3>
           <div 
-            ref={scrollRef}
-            class="bg-black text-white font-mono text-sm p-4 rounded-lg my-4 max-h-96 overflow-y-auto"
+            ref={el => (scrollRef = el)}
+            class="bg-black text-white font-mono text-sm p-4 rounded-lg my-4 max-h-96 overflow-y-auto whitespace-pre-wrap break-words"
           >
             <For each={output()}>
               {(line) => (
-                <p classList={{ 'text-red-400': line.source === 'stderr' }}>
-                  <LineWithLinks line={line.line} />
-                </p>
+                <div>
+                  <LineWithLinks line={line.line} isError={line.source === 'stderr'} />
+                </div>
               )}
             </For>
             <Show when={!result() && !scanWarning()}>
@@ -175,13 +207,13 @@ function OperationModal(props: OperationModalProps) {
           <Show when={scanWarning()}>
               <div class="alert alert-warning">
                   <ShieldAlert class="w-6 h-6" />
-                  <span>{scanWarning()!.message}</span>
+                  <span>{scanWarning()?.message}</span>
               </div>
           </Show>
 
           <Show when={result()}>
               <div class="alert" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
-                  <span>{result()!.message}</span>
+                  <span>{result()?.message}</span>
               </div>
           </Show>
 
@@ -202,7 +234,7 @@ function OperationModal(props: OperationModalProps) {
               </button>
           </div>
         </div>
-        <div class="modal-backdrop" onClick={() => {if (result()) { props.onClose(result()?.success ?? false) } else { props.onClose(false) }}}></div>
+        <div class="modal-backdrop" onClick={() => props.onClose(result()?.success ?? false)}></div>
       </div>
     </Show>
   );

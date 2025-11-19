@@ -18,7 +18,7 @@ function SearchBar(props: SearchBarProps) {
 
             <input
                 type="text"
-                placeholder="Search for apps ... (Local Buckets)"
+                placeholder="Search for apps from local Buckets"
                 class="input bg-base-400 input-bordered w-full pl-10 pr-10 relative"
                 value={props.searchTerm()}
                 onInput={(e) => props.setSearchTerm(e.currentTarget.value)}

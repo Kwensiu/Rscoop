@@ -2,29 +2,8 @@ import { createSignal, createEffect, onCleanup, For, Show, Component } from "sol
 import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
-import { ShieldAlert, AlertTriangle, ExternalLink, X } from "lucide-solid";
-
-// Custom hook for tracking window size
-const useWindowSize = () => {
-  const [windowSize, setWindowSize] = createSignal({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
-
-  createEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    window.addEventListener("resize", handleResize);
-    onCleanup(() => window.removeEventListener("resize", handleResize));
-  });
-
-  return windowSize;
-};
+import { X, ShieldAlert, AlertTriangle, ExternalLink } from "lucide-solid";
+import { isErrorLine } from "../utils/errorDetection";
 
 interface OperationOutput {
   line: string;
@@ -38,29 +17,60 @@ interface OperationResult {
 }
 
 // Helper component to find and render links in a line of text
-const LineWithLinks: Component<{ line: string }> = (props) => {
+const LineWithLinks: Component<{ line: string; isStderr?: boolean }> = (props) => {
   // This regex is designed to strip ANSI color codes from the string.
   const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
   const cleanLine = props.line.replace(ansiRegex, '');
   
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = cleanLine.split(urlRegex);
+  
+  // Check if line should be displayed as error
+  const isError = isErrorLine(cleanLine, props.isStderr);
+  
+  // If it's an error line, wrap it in error styling
+  if (isError) {
+    return (
+      <span class="text-red-400 font-mono">
+        {cleanLine.match(urlRegex) ? (
+          <For each={cleanLine.split(urlRegex)}>
+            {(part) => {
+              if (part.match(urlRegex)) {
+                return (
+                  <a href={part} target="_blank" class="link link-error inline-flex items-center">
+                    {part}
+                    <ExternalLink class="w-3 h-3 ml-1" />
+                  </a>
+                );
+              }
+              return <span>{part}</span>;
+            }}
+          </For>
+        ) : (
+          <span>{cleanLine}</span>
+        )}
+      </span>
+    );
+  }
 
   return (
     <span>
-      <For each={parts}>
-        {(part) => {
-          if (part.match(urlRegex)) {
-            return (
-              <a href={part} target="_blank" class="link link-info inline-flex items-center">
-                {part}
-                <ExternalLink class="w-3 h-3 ml-1" />
-              </a>
-            );
-          }
-          return <span>{part}</span>;
-        }}
-      </For>
+      {cleanLine.match(urlRegex) ? (
+        <For each={cleanLine.split(urlRegex)}>
+          {(part) => {
+            if (part.match(urlRegex)) {
+              return (
+                <a href={part} target="_blank" class="link link-info inline-flex items-center">
+                  {part}
+                  <ExternalLink class="w-3 h-3 ml-1" />
+                </a>
+              );
+            }
+            return <span>{part}</span>;
+          }}
+        </For>
+      ) : (
+        <span>{cleanLine}</span>
+      )}
     </span>
   );
 };
@@ -83,19 +93,7 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
   const [result, setResult] = createSignal<OperationResult | null>(null);
   const [showNextStep, setShowNextStep] = createSignal(false);
   const [scanWarning, setScanWarning] = createSignal<VirustotalResult | null>(null);
-  const windowSize = useWindowSize();
   let scrollRef: HTMLDivElement | undefined;
-  
-  // Effect to handle window resize
-  createEffect(() => {
-    // Accessing windowSize() triggers the effect when window is resized
-    windowSize();
-    
-    // Keep scroll at the bottom
-    if (scrollRef) {
-      scrollRef.scrollTop = scrollRef.scrollHeight;
-    }
-  });
   
   // This effect now correctly manages the lifecycle of the listeners
   createEffect(() => {
@@ -148,12 +146,6 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
     });
   });
 
-  // Effect to auto-scroll the output view
-  createEffect(() => {
-    if (scrollRef) {
-      scrollRef.scrollTop = scrollRef.scrollHeight;
-    }
-  });
 
   const handleCloseOrCancel = () => {
     // If we are in the warning phase, this is a explicit cancel
@@ -189,7 +181,7 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
           style="background-color: rgba(0, 0, 0, 0.3);"
           onClick={handleCloseOrCancel}
         ></div>
-        <div class="relative bg-base-200 rounded-lg shadow-xl border border-base-300 w-full max-w-md sm:max-w-lg md:max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="relative bg-base-200 rounded-lg shadow-xl border border-base-300 w-full max-w-lg sm:max-w-lg md:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <div class="flex justify-between items-center p-3 border-b border-base-300">
             <h3 class="font-bold text-lg truncate">{props.title}</h3>
             <button 
@@ -203,12 +195,16 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
           <div 
             ref={scrollRef}
             class="bg-black text-white font-mono text-xs p-3 rounded-lg m-3 overflow-y-auto flex-grow"
+            style="white-space: pre-wrap; word-break: break-word;"
           >
             <For each={output()}>
               {(line) => (
-                <p classList={{ 'text-red-400': line.source === 'stderr' }}>
-                  <LineWithLinks line={line.line} />
-                </p>
+                <div class="mb-1">
+                  <LineWithLinks 
+                    line={line.line} 
+                    isStderr={line.source === 'stderr'} 
+                  />
+                </div>
               )}
             </For>
             <Show when={!result() && !scanWarning()}>

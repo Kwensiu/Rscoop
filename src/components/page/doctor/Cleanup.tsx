@@ -10,7 +10,7 @@ function Cleanup(props: CleanupProps) {
         <div class="card bg-base-200 shadow-xl">
             <div class="card-body">
                 <h2 class="card-title text-xl">
-                    System Cleanup
+                    Scoop Cleanup
                 </h2>
                 <p class="text-base-content/80 mb-4">
                     Free up disk space by removing old package versions and outdated download caches.
@@ -24,6 +24,12 @@ function Cleanup(props: CleanupProps) {
                         <Archive class="w-4 h-4 mr-2" />
                         Cleanup Outdated Cache
                     </button>
+                </div>
+
+                <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">
+                    <p class="text-xs text-info-content/70">
+                        <strong>Notice:</strong> If there's a problem with the cleanup, try to kill all PowerShell processes.
+                    </p>
                 </div>
             </div>
         </div>

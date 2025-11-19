@@ -53,20 +53,36 @@ fn spawn_output_stream_handler(
 
     tokio::spawn(async move {
         while let Ok(Some(line)) = reader.next_line().await {
-            if source == "stderr" || line.to_lowercase().starts_with("error") {
+            // Enhanced error detection for scoop commands
+            let is_error_line = source == "stderr" || 
+                               line.to_lowercase().contains("error") ||
+                               line.to_lowercase().contains("failed") ||
+                               line.to_lowercase().contains("exception") ||
+                               line.to_lowercase().contains("cannot") ||
+                               line.to_lowercase().contains("could not") ||
+                               line.to_lowercase().contains("not found") ||
+                               line.to_lowercase().contains("access to the path") ||
+                               line.to_lowercase().contains("denied") ||
+                               line.contains("Remove-Item") ||
+                               line.contains("Access to the path") ||
+                               line.contains("is denied");
+            
+            // Send error lines to the error channel for final result display
+            if is_error_line {
                 if let Err(e) = error_tx.send(line.clone()).await {
-                    log::error!("Failed to send error line: {}", e);
+                    log::error!("Failed to send error line to error channel: {}", e);
                 }
             }
 
+            // Always send all lines to the frontend for display
             if let Err(e) = window.emit(
                 &output_event,
                 StreamOutput {
-                    line,
+                    line: line.clone(),
                     source: source.to_string(),
                 },
             ) {
-                log::error!("Failed to emit output event: {}", e);
+                log::error!("Failed to emit output event for line '{}': {}", line, e);
             }
         }
     });
@@ -163,16 +179,43 @@ async fn handle_command_completion(
     })?;
     log::info!("{} finished with status: {}", operation_name, status);
 
-    let has_errors = error_rx.try_recv().is_ok();
+    // Collect all error messages
+    let mut error_messages = Vec::new();
+    while let Ok(error_line) = error_rx.try_recv() {
+        error_messages.push(error_line);
+    }
+    
+    let has_errors = !error_messages.is_empty();
     let was_successful = status.success() && !has_errors;
 
     let message = if was_successful {
         format!("{} completed successfully", operation_name)
     } else {
-        format!(
-            "{} failed. Please check the output for details.",
-            operation_name
-        )
+        if !error_messages.is_empty() {
+            // Show the last few error messages for context
+            let error_preview = if error_messages.len() <= 3 {
+                error_messages.join("\n")
+            } else {
+                format!("{}\n... and {} more errors", 
+                    error_messages[..3].join("\n"), 
+                    error_messages.len() - 3)
+            };
+            
+            format!(
+                "{} failed with {} error(s):\n{}\nPlease check the output log for details.",
+                operation_name,
+                error_messages.len(),
+                error_preview
+            )
+        } else if !status.success() {
+            format!(
+                "{} failed with exit code {:?}. Please check the output log for details.",
+                operation_name,
+                status.code()
+            )
+        } else {
+            format!("{} completed with issues", operation_name)
+        }
     };
 
     if let Err(e) = window.emit(
@@ -199,34 +242,23 @@ async fn handle_cancellation(
     window: &Window,
     finished_event: &str,
 ) -> Result<(), String> {
+    log::warn!("Cancelling operation: {}", operation_name);
+    
+    // Try to kill the process
     if let Err(e) = child.kill().await {
-        let err_msg = format!(
-            "Failed to kill child process for '{}': {}",
-            operation_name, e
-        );
-        log::error!("{}", err_msg);
-        if let Err(e) = window.emit(
-            finished_event,
-            CommandResult {
-                success: false,
-                message: err_msg.clone(),
-            },
-        ) {
-            log::error!("Failed to emit finished event on kill failure: {}", e);
-        }
-        return Err(err_msg);
+        log::error!("Failed to kill child process: {}", e);
     }
-
-    let cancel_msg = format!("{} was cancelled.", operation_name);
-    log::info!("{}", cancel_msg);
+    
+    let message = format!("{} was cancelled by user", operation_name);
     if let Err(e) = window.emit(
         finished_event,
         CommandResult {
             success: false,
-            message: cancel_msg.clone(),
+            message: message.clone(),
         },
     ) {
         log::error!("Failed to emit cancellation event: {}", e);
     }
-    Err(cancel_msg)
+    
+    Err(message)
 }

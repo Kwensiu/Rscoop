@@ -1,4 +1,4 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onMount, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Power } from "lucide-solid";
 
@@ -9,18 +9,37 @@ export default function StartupSettings() {
     const [error, setError] = createSignal<string | null>(null);
     const [successMessage, setSuccessMessage] = createSignal<string | null>(null);
 
+    let isComponentMounted = true;
+
+    onMount(() => {
+        fetchAutoStartStatus();
+        return () => {
+            isComponentMounted = false;
+        };
+    });
+
+    onCleanup(() => {
+        isComponentMounted = false;
+    });
+
     const fetchAutoStartStatus = async () => {
         setIsLoading(true);
         setError(null);
         try {
             const status = await invoke<boolean>("is_auto_start_enabled");
-            setIsAutoStartEnabled(status);
+            if (isComponentMounted) {
+                setIsAutoStartEnabled(status);
+            }
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to fetch auto-start status:", errorMsg);
-            setError("Could not load auto-start setting: " + errorMsg);
+            if (isComponentMounted) {
+                setError("Could not load auto-start setting: " + errorMsg);
+            }
         } finally {
-            setIsLoading(false);
+            if (isComponentMounted) {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -33,57 +52,63 @@ export default function StartupSettings() {
         try {
             const newState = !previousState;
             await invoke("set_auto_start_enabled", { enabled: newState });
-            setIsAutoStartEnabled(newState);
-            setSuccessMessage(
-                newState 
-                    ? "Application will start automatically on boot." 
-                    : "Application will no longer start automatically on boot."
-            );
-            setTimeout(() => setSuccessMessage(null), 3000);
+            if (isComponentMounted) {
+                setIsAutoStartEnabled(newState);
+                setSuccessMessage(
+                    newState 
+                        ? "Set Startup successfully!" 
+                        : "Removed Startup successfully!"
+                );
+                setTimeout(() => {
+                    if (isComponentMounted) {
+                        setSuccessMessage(null);
+                    }
+                }, 3000);
+            }
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to toggle auto-start:", errorMsg);
-            setError("Failed to update auto-start setting: " + errorMsg);
-            // Restore to previous state to prevent UI inconsistency with actual state
-            setIsAutoStartEnabled(previousState);
+            if (isComponentMounted) {
+                setError("Failed to update auto-start setting: " + errorMsg);
+                // Restore to previous state to prevent UI inconsistency with actual state
+                setIsAutoStartEnabled(previousState);
+            }
         } finally {
-            setIsToggling(false);
+            if (isComponentMounted) {
+                setIsToggling(false);
+            }
         }
     };
-
-    onMount(() => {
-        fetchAutoStartStatus();
-    });
 
     return (
         <div class="card bg-base-200 shadow-xl">
             <div class="card-body">
-                <h2 class="card-title text-xl">
-                    <Power class="w-6 h-6 mr-2 text-primary" />
-                    Startup Settings
-                </h2>
-                <p class="text-base-content/80 mb-4">
-                    Configure whether the application should automatically start when Windows boots.
-                </p>
-                <div class="form-control w-full max-w-lg">
-                    <label class="label cursor-pointer justify-between">
-                        <span class="label-text font-semibold">Start Rscoop on Windows startup</span>
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-primary"
-                            checked={isAutoStartEnabled()}
-                            onChange={toggleAutoStart}
-                            disabled={isLoading() || isToggling()}
-                        />
-                    </label>
-                    {(isLoading() || isToggling()) && (
-                        <div class="text-sm text-base-content/70 mt-2">
-                            {isLoading() ? "Loading..." : "Updating..."}
-                        </div>
-                    )}
+                <div class="flex justify-between items-start">
+                    <h2 class="card-title text-xl">
+                        <Power class="w-6 h-6 mr-2 text-primary" />
+                        Rscoop Startup
+                    </h2>
+                    <input
+                        type="checkbox"
+                        class="toggle toggle-primary"
+                        checked={isAutoStartEnabled()}
+                        onChange={toggleAutoStart}
+                        disabled={isLoading() || isToggling()}
+                    />
                 </div>
-                {error() && <div class="alert alert-error mt-4 text-sm">{error()}</div>}
-                {successMessage() && <div class="alert alert-success mt-4 text-sm">{successMessage()}</div>}
+                <p class="text-base-content/80 mt-2 mb-3">
+                    Startup Rscoop when Windows boots up.
+                </p>
+                {error() && (
+                    <div class="alert alert-error">
+                        <span>{error()}</span>
+                    </div>
+                )}
+                {successMessage() && (
+                    <div class="alert alert-success">
+                        <span>{successMessage()}</span>
+                    </div>
+                )}
             </div>
         </div>
     );

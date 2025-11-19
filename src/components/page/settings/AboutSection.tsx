@@ -1,19 +1,11 @@
 import { ShieldCheck, Download, RefreshCw, Github, Star } from "lucide-solid";
-import { createSignal, Show } from "solid-js";
-import { check } from '@tauri-apps/plugin-updater';
+import { createSignal, Show, Component } from "solid-js";
+import { check, Update, type DownloadEvent } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import pkgJson from "../../../../package.json";
 
-// Define the types we need
-interface UpdateEvent {
-  event: 'Started' | 'Progress' | 'Finished';
-  data: {
-    contentLength?: number;
-    chunkLength?: number;
-  };
-}
 
 export interface AboutSectionRef {
   checkForUpdates: (manual: boolean) => Promise<void>;
@@ -24,9 +16,56 @@ export interface AboutSectionProps {
   isScoopInstalled?: boolean;
 }
 
+const GitHubRepoCard: Component<{
+  repoName: string;
+  repoUrl: string;
+  message?: string;
+}> = (props) => {
+  const handleOpenUrl = async () => {
+    try {
+      await openUrl(props.repoUrl);
+    } catch (error) {
+      console.error(`Failed to open GitHub URL:`, error);
+      await message(`Could not open the URL. Please visit ${props.repoUrl} manually.`, {
+        title: "Error Opening URL",
+        kind: "error"
+      });
+    }
+  };
+
+  return (
+    <div class="flex flex-col items-center space-y-2 mt-4 p-3 bg-base-300 rounded-lg border border-base-content/10">
+      <div class="text-sm text-base-content/80 text-center">
+        {props.repoName}
+      </div>
+      <div class="flex space-x-2">
+        <button
+          class="btn btn-xs btn-outline btn-primary hover:btn-primary transition-colors"
+          onClick={handleOpenUrl}
+        >
+          <Github class="w-3 h-3 mr-1" />
+          View on GitHub
+        </button>
+        <button
+          class="btn btn-xs btn-outline btn-warning hover:btn-warning transition-colors"
+          onClick={handleOpenUrl}
+        >
+          <Star class="w-3 h-3 mr-1" />
+          Leave a Star
+        </button>
+      </div>
+      <Show when={props.message}>
+        <div class="text-xs text-base-content/60 text-center">
+          {props.message}
+        </div>
+      </Show>
+    </div>
+  );
+};
+
 export default function AboutSection(props: AboutSectionProps) {
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
-  const [updateInfo, setUpdateInfo] = createSignal<any>(null);
+  const [updateInfo, setUpdateInfo] = createSignal<Update | null>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
   const [downloadProgress, setDownloadProgress] = createSignal<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
 
@@ -86,7 +125,8 @@ export default function AboutSection(props: AboutSectionProps) {
 
   const installAvailableUpdate = async () => {
     try {
-      if (!updateInfo()) {
+      const currentUpdateInfo = updateInfo();
+      if (!currentUpdateInfo) {
         throw new Error("No update information available");
       }
 
@@ -94,7 +134,7 @@ export default function AboutSection(props: AboutSectionProps) {
       setDownloadProgress({ downloaded: 0, total: null });
 
       // Download and install the update with progress reporting
-      await updateInfo().downloadAndInstall((event: UpdateEvent) => {
+      await currentUpdateInfo.downloadAndInstall((event: DownloadEvent) => {
         switch (event.event) {
           case 'Started':
             setDownloadProgress({
@@ -140,51 +180,27 @@ export default function AboutSection(props: AboutSectionProps) {
         <div class="flex justify-between items-center">
           <h2 class="card-title text-xl">
             <ShieldCheck class="w-6 h-6 mr-2 text-secondary" />
-            About
+            Rscoop-Fork
           </h2>
           <span class="badge badge-outline badge-info">v{pkgJson.version}</span>
         </div>
         <p class="text-base-content/60 mt-2">
-          A modern, powerful GUI for Scoop on Windows.
+          A modern, powerful GUI for Scoop on Windows. You are using a fork version by Kwensiu.
         </p>
 
-        {/* Developer Credit */}
-        <div class="flex flex-col items-center space-y-2 mt-4 p-3 bg-base-300 rounded-lg border border-base-content/10">
-          <div class="text-sm text-base-content/80 text-center">
-            Rscoop
-          </div>
-          <div class="flex space-x-2">
-            <button
-              class="btn btn-xs btn-outline btn-primary hover:btn-primary transition-colors"
-              onClick={async () => {
-                try {
-                  await openUrl('https://github.com/AmarBego/Rscoop');
-                } catch (error) {
-                  console.error('Failed to open GitHub URL:', error);
-                }
-              }}
-            >
-              <Github class="w-3 h-3 mr-1" />
-              View on GitHub
-            </button>
-            <button
-              class="btn btn-xs btn-outline btn-warning hover:btn-warning transition-colors"
-              onClick={async () => {
-                try {
-                  await openUrl('https://github.com/AmarBego/Rscoop');
-                } catch (error) {
-                  console.error('Failed to open GitHub URL:', error);
-                }
-              }}
-            >
-              <Star class="w-3 h-3 mr-1" />
-              Leave a Star
-            </button>
-          </div>
-          <div class="text-xs text-base-content/60 text-center">
-            If you find this useful, please consider giving it a star! ⭐
-          </div>
-        </div>
+        {/* Original Developer Credit */}
+        <GitHubRepoCard 
+          repoName="Rscoop"
+          repoUrl="https://github.com/AmarBego/Rscoop"
+          message="If you find this useful, please consider giving it a star! ⭐"
+        />
+
+        {/* Fork Developer Credit */}
+        <GitHubRepoCard 
+          repoName="Rscoop (Fork Version)"
+          repoUrl="https://github.com/Kwensiu/Rscoop"
+          message="This is a fork version maintained by Kwensiu."
+        />
 
         <div class="flex flex-col space-y-2 mt-4">
           {props.isScoopInstalled && (
@@ -273,4 +289,4 @@ export default function AboutSection(props: AboutSectionProps) {
       </div>
     </div >
   );
-} 
+}
