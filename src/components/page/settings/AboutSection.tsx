@@ -15,13 +15,6 @@ interface UpdateEvent {
   };
 }
 
-interface UpdateInfo {
-  available: boolean;
-  version?: string;
-  body?: string;
-  downloadAndInstall: (callback: (event: UpdateEvent) => void) => Promise<void>;
-}
-
 export interface AboutSectionRef {
   checkForUpdates: (manual: boolean) => Promise<void>;
 }
@@ -80,7 +73,7 @@ const GitHubRepoCard: Component<{
 
 export default function AboutSection(props: AboutSectionProps) {
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
-  const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | null>(null);
+  const [updateInfo, setUpdateInfo] = createSignal<any>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
   const [downloadProgress, setDownloadProgress] = createSignal<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
 
@@ -140,8 +133,7 @@ export default function AboutSection(props: AboutSectionProps) {
 
   const installAvailableUpdate = async () => {
     try {
-      const currentUpdateInfo = updateInfo();
-      if (!currentUpdateInfo) {
+      if (!updateInfo()) {
         throw new Error("No update information available");
       }
 
@@ -149,7 +141,7 @@ export default function AboutSection(props: AboutSectionProps) {
       setDownloadProgress({ downloaded: 0, total: null });
 
       // Download and install the update with progress reporting
-      await currentUpdateInfo.downloadAndInstall((event: UpdateEvent) => {
+      await updateInfo().downloadAndInstall((event: UpdateEvent) => {
         switch (event.event) {
           case 'Started':
             setDownloadProgress({
