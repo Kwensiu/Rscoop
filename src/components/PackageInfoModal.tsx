@@ -4,7 +4,7 @@ import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
-import { Download, MoreHorizontal, FileText, Trash2, ExternalLink, RefreshCw, X } from "lucide-solid";
+import { Download, Ellipsis, FileText, Trash2, ExternalLink, RefreshCw, X } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import { openPath } from '@tauri-apps/plugin-opener';
@@ -159,6 +159,10 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   const [versionLoading, setVersionLoading] = createSignal(false);
   const [versionError, setVersionError] = createSignal<string | null>(null);
   const [switchingVersion, setSwitchingVersion] = createSignal<string | null>(null);
+  
+  // State for uninstall confirmation
+  const [uninstallConfirm, setUninstallConfirm] = createSignal(false);
+  const [uninstallTimer, setUninstallTimer] = createSignal<number | null>(null);
 
   createEffect(() => {
     if (props.info?.notes && codeRef) {
@@ -198,6 +202,12 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       setVersionError(null);
       setVersionLoading(false);
       setSwitchingVersion(null);
+      // Reset uninstall confirmation state when switching packages
+      setUninstallConfirm(false);
+      if (uninstallTimer()) {
+        window.clearTimeout(uninstallTimer()!);
+        setUninstallTimer(null);
+      }
     }
     return currentPackageName;
   });
@@ -256,16 +266,16 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         targetVersion,
         global: false, // TODO: Add support for global packages
       });
-      
+
       // Refresh version info after switching
       await fetchVersionInfo(pkg);
-      
+
       // Notify parent that package state may have changed
       props.onPackageStateChanged?.();
-      
+
       // Call the onSwitchVersion callback if provided
       props.onSwitchVersion?.(pkg, targetVersion);
-      
+
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`Failed to switch ${pkg.name} to version ${targetVersion}:`, errorMsg);
@@ -332,7 +342,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             <div class="flex gap-2">
               <div class="dropdown dropdown-end">
                 <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
-                  <MoreHorizontal class="w-5 h-5" />
+                  <Ellipsis class="w-5 h-5" />
                 </label>
                 <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
                   <li>
@@ -497,10 +507,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                   </div>
                 </div>
               }>
-                <div class="bg-base-300 rounded-lg p-4">
-                  <div class="flex justify-center items-center h-20">
-                    <span class="loading loading-spinner loading-lg"></span>
-                  </div>
+                <div class="bg-base-300 rounded-lg p-4 flex items-center justify-center">
+                  <span class="loading loading-spinner"></span>
                 </div>
               </Show>
             </Show>
@@ -508,7 +516,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           <div class="modal-action p-4 border-t border-base-300">
             <form method="dialog">
               <Show when={!props.pkg?.is_installed && props.onInstall}>
-                <button 
+                <button
                   type="button"
                   class="btn btn-primary mr-2"
                   onClick={() => {
@@ -527,16 +535,33 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                 <button
                   type="button"
                   class="btn btn-error mr-2"
+                  classList={{ "btn-warning": uninstallConfirm() }}
                   onClick={() => {
+                    if (uninstallConfirm()) {
+                      // Execute uninstall
+                      if (uninstallTimer()) {
+                        window.clearTimeout(uninstallTimer()!);
+                        setUninstallTimer(null);
+                      }
+                      setUninstallConfirm(false);
                     if (props.pkg) {
                       props.onUninstall?.(props.pkg);
                       // Notify parent that package state may change
                       props.onPackageStateChanged?.();
+                      }
+                    } else {
+                      // First click - show confirmation
+                      setUninstallConfirm(true);
+                      const timer = window.setTimeout(() => {
+                        setUninstallConfirm(false);
+                        setUninstallTimer(null);
+                      }, 3000);
+                      setUninstallTimer(timer);
                     }
                   }}
                 >
                   <Trash2 class="w-4 h-4 mr-2" />
-                  Uninstall
+                  {uninstallConfirm() ? "Sure?" : "Uninstall"}
                 </button>
               </Show>
               <button class="btn" onClick={(e) => {
@@ -548,6 +573,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             </form>
           </div>
         </div>
+        <div class="modal-backdrop" onClick={props.onClose}></div>
+        </div>
         <ManifestModal
           packageName={props.pkg?.name ?? ""}
           manifestContent={manifestContent()}
@@ -555,7 +582,6 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           error={manifestError()}
           onClose={closeManifestModal}
         />
-      </div>
     </Show>
   );
 }
