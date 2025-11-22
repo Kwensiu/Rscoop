@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod cold_start;
 mod commands;
+mod commands;
 mod models;
 mod state;
 mod tray;
