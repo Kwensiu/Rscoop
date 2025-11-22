@@ -1,7 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod cold_start;
 mod commands;
-mod commands;
 mod models;
 mod state;
 mod tray;
@@ -43,15 +42,28 @@ pub fn run() {
         std::path::PathBuf::from("./logs")
     };
 
-    // Clear existing log files on launch
+    // Clear existing log files on launch (only old ones)
     if log_dir.exists() {
-        if let Err(e) = std::fs::remove_dir_all(&log_dir) {
-            eprintln!("Failed to clear old logs: {}", e);
+        if let Ok(entries) = std::fs::read_dir(&log_dir) {
+            for entry in entries.flatten() {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_file() {
+                        // Try to remove file, but don't panic if it fails
+                        if let Err(e) = std::fs::remove_file(entry.path()) {
+                            eprintln!("Failed to clear log file {:?}: {}", entry.path(), e);
+                        }
+                    }
+                }
+            }
+        } else {
+            eprintln!("Failed to read log directory: {:?}", log_dir);
         }
     }
 
     // Create log directory
-    let _ = std::fs::create_dir_all(&log_dir);
+    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+        eprintln!("Failed to create log directory {:?}: {}", log_dir, e);
+    }
 
     let log_plugin = tauri_plugin_log::Builder::new()
         .targets([
