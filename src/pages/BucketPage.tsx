@@ -336,7 +336,9 @@ function BucketPage() {
           onClose={packageInfo.closeModal}
           onInstall={(pkg: ScoopPackage) => packageOperations.handleInstall(pkg)}
           onUninstall={(pkg: ScoopPackage) => packageOperations.handleUninstall(pkg)}
+          onUpdate={(pkg: ScoopPackage) => packageOperations.handleUpdate(pkg)}
           isPackageVersioned={() => false}
+          setOperationTitle={packageOperations.operationTitle}
         />
       </Show>
 

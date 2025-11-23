@@ -2,6 +2,7 @@ import PackageInfoModal from "../components/PackageInfoModal";
 import FloatingOperationPanel from "../components/FloatingOperationPanel";
 
 import { useSearch } from "../hooks/useSearch";
+import { usePackageOperations } from "../hooks/usePackageOperations";
 import SearchBar from "../components/page/search/SearchBar";
 import SearchResultsTabs from "../components/page/search/SearchResultsTabs";
 import SearchResultsList from "../components/page/search/SearchResultsList";
@@ -31,6 +32,8 @@ function SearchPage() {
     restoreSearchResults,
     cleanup
   } = useSearch();
+  
+  const packageOperations = usePackageOperations();
 
   const [currentPage, setCurrentPage] = createSignal(1);
 
@@ -84,6 +87,8 @@ function SearchPage() {
         onClose={closeModal}
         onInstall={handleInstall}
         onUninstall={handleUninstall}
+        onUpdate={packageOperations.handleUpdate}
+        setOperationTitle={operationTitle}
         onPackageStateChanged={() => {
           // This will be called when install/uninstall buttons are clicked
           // The actual refresh will happen in closeOperationModal when the operation completes

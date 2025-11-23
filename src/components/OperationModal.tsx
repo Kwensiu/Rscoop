@@ -180,11 +180,23 @@ function OperationModal(props: OperationModalProps) {
     return !result() && !scanWarning() && props.title;
   };
 
+  // Format the title for display
+  const formattedTitle = () => {
+    if (!props.title) return '';
+    
+    // Special handling for force updates to make it clearer in the UI
+    if (props.title.startsWith('Force updating ')) {
+      return props.title.replace('Force updating ', 'Force Updating ');
+    }
+    
+    return props.title;
+  };
+
   return (
     <Show when={!!props.title}>
       <div class="modal modal-open backdrop-blur-sm" role="dialog">
         <div class="modal-box w-11/12 max-w-5xl mx-auto">
-          <h3 class="font-bold text-lg">{props.title}</h3>
+          <h3 class="font-bold text-lg">{formattedTitle()}</h3>
           <div 
             ref={el => (scrollRef = el)}
             class="bg-black text-white font-mono text-sm p-4 rounded-lg my-4 max-h-96 overflow-y-auto whitespace-pre-wrap break-words"
