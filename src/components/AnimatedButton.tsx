@@ -88,7 +88,7 @@ const AnimatedButton = (props: AnimatedButtonProps) => {
   // Determine button classes based on state
   const getButtonClasses = () => {
     // All update bottom layer
-    const baseClasses = "fixed bottom-14 right-6 shadow-lg z-50 tooltip tooltip-left transform transition-all duration-300 ease-in-out overflow-hidden rounded-full z-[30]";
+    const baseClasses = "fixed bottom-14 right-6 shadow-lg z-11 tooltip tooltip-left transform transition-all duration-300 ease-in-out overflow-hidden rounded-full";
     
     if (isLoading() || isSuccess()) {
       return `${baseClasses} px-4 h-12 bg-success`;

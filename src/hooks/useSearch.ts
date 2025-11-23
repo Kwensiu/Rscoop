@@ -194,10 +194,10 @@ export function useSearch(): UseSearchReturn {
     };
 
     return {
-        searchTerm, 
+        searchTerm,
         setSearchTerm,
         loading,
-        activeTab, 
+        activeTab,
         setActiveTab,
         resultsToShow,
         packageResults,

@@ -36,7 +36,7 @@ const PackageCard = (props: {
   const { pkg } = props;
   
   return (
-    <div class="card bg-base-300 shadow-xl transition-all transform hover:scale-101 hover:bg-base-400 z-0 focus-within:z-20" data-no-close-search>
+    <div class="card bg-base-300 shadow-xl transition-all transform hover:scale-101 hover:bg-base-400 z-0 focus-within:z-10" data-no-close-search>
       <div class="card-body">
         <div class="flex justify-between items-start mb-2">
           <div class="flex-1 min-w-0">
@@ -84,12 +84,6 @@ const PackageCard = (props: {
                   onViewInfoForVersions={props.onViewInfoForVersions}
                   pkg={pkg}
                 />
-                <li>
-                  <a onClick={() => props.onChangeBucket(pkg)}>
-                    <ArrowLeftRight class="w-4 h-4 mr-2" />
-                    Change Bucket
-                  </a>
-                </li>
                 <li>
                   <a class="text-error" onClick={() => props.onUninstall(pkg)}>
                     <Trash2 class="w-4 h-4 mr-2" />
