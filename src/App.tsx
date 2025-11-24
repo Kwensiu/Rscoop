@@ -79,9 +79,10 @@ function App() {
 
     // Minimized state
     const [minimizedState, setMinimizedState] = createSignal({
-        isMinimized: false,
-        showIndicator: false,
-        title: ""
+      isMinimized: false,
+      showIndicator: false,
+      title: "",
+      result: "in-progress" as 'success' | 'error' | 'in-progress'
     });
 
     // Listen for minimize events from FloatingOperationPanel
@@ -106,7 +107,8 @@ function App() {
         setMinimizedState({
             isMinimized: false,
             showIndicator: false,
-            title: ""
+            title: "",
+            result: "in-progress"
         });
     };
 

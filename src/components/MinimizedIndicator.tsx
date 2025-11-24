@@ -1,5 +1,6 @@
-import { createSignal, createEffect, onCleanup, Show, Component } from "solid-js";
-import { Minimize2 } from "lucide-solid";
+import { Show, Component, createEffect, createSignal } from "solid-js";
+import { Minimize2, CheckCircle, XCircle } from "lucide-solid";
+import { listen } from "@tauri-apps/api/event";
 
 interface MinimizedIndicatorProps {
   title: string;
@@ -7,7 +8,33 @@ interface MinimizedIndicatorProps {
   onClick: () => void;
 }
 
+interface MinimizedState {
+  isMinimized: boolean;
+  showIndicator: boolean;
+  title: string;
+  result?: 'success' | 'error' | 'in-progress';
+}
+
 const MinimizedIndicator: Component<MinimizedIndicatorProps> = (props) => {
+  const [result, setResult] = createSignal<'success' | 'error' | 'in-progress'>('in-progress');
+
+  // Listen for minimize events with result status
+  createEffect(() => {
+    let unlisten: (() => void) | undefined;
+    
+    listen<MinimizedState>('panel-minimize-state', (event) => {
+      if (event.payload.result) {
+        setResult(event.payload.result);
+      }
+    }).then((unlistenFn) => {
+      unlisten = unlistenFn;
+    });
+    
+    return () => {
+      if (unlisten) unlisten();
+    };
+  });
+
   return (
     <Show when={props.visible}>
       <div 
@@ -23,8 +50,15 @@ const MinimizedIndicator: Component<MinimizedIndicatorProps> = (props) => {
             {props.title}
           </div>
           <div class="flex items-center">
-            <span class="loading loading-spinner loading-xs mr-1"></span>
-            <Minimize2 class="w-4 h-4" />
+            <Show when={result() === 'in-progress'}>
+              <span class="loading loading-spinner loading-xs mr-1"></span>
+            </Show>
+            <Show when={result() === 'success'}>
+              <CheckCircle class="w-4 h-4 text-success mr-1" />
+            </Show>
+            <Show when={result() === 'error'}>
+              <XCircle class="w-4 h-4 text-error mr-1" />
+            </Show>
           </div>
         </div>
       </div>

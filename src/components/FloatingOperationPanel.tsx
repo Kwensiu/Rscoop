@@ -3,7 +3,7 @@ import { Portal } from "solid-js/web";
 import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
-import { X, ShieldAlert, AlertTriangle, ExternalLink, Minimize2 } from "lucide-solid";
+import { X, ShieldAlert, AlertTriangle, ExternalLink, Minimize2, CheckCircle, XCircle } from "lucide-solid";
 import { isErrorLine } from "../utils/errorDetection";
 import { stripAnsi } from "../utils/ansiUtils";
 
@@ -16,6 +16,14 @@ interface OperationOutput {
 interface OperationResult {
   success: boolean;
   message: string;
+}
+
+// Add type for minimized state with result
+interface MinimizedState {
+  isMinimized: boolean;
+  showIndicator: boolean;
+  title: string;
+  result?: 'success' | 'error' | 'in-progress';
 }
 
 // Helper component to find and render links in a line of text
@@ -125,6 +133,16 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
             // If scan is clean, proceed immediately
             props.onInstallConfirm?.();
           }
+          
+          // Update minimized indicator with error state when scan finishes with warnings
+          if (event.payload.detections_found || event.payload.is_api_key_missing) {
+            emit('panel-minimize-state', {
+              isMinimized: true,
+              showIndicator: true,
+              title: props.title,
+              result: 'error'
+            } as MinimizedState);
+          }
         });
       } else {
         // Standard listener for install, update, etc.
@@ -133,6 +151,14 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
           if (event.payload.success && props.nextStep) {
             setShowNextStep(true);
           }
+          
+          // Update minimized indicator with result state
+          emit('panel-minimize-state', {
+            isMinimized: true,
+            showIndicator: true,
+            title: props.title,
+            result: event.payload.success ? 'success' : 'error'
+          } as MinimizedState);
         });
       }
     };
@@ -151,7 +177,14 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
       setIsMinimized(false); // Reset minimized state when new operation starts
       setIsMinimizing(false); // Reset minimizing animation state
       setShowMinimizedIndicator(false); // Hide minimized indicator
-
+      
+      // Emit initial minimized state with in-progress status
+      emit('panel-minimize-state', {
+        isMinimized: false,
+        showIndicator: false,
+        title: props.title,
+        result: 'in-progress'
+      } as MinimizedState);
     }
 
     // This cleanup runs whenever the effect re-runs or the component is unmounted.
@@ -189,6 +222,18 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
     }
   };
 
+  const getCloseButtonText = () => {
+    if (scanWarning()) {
+      return "Cancel";
+    }
+    
+    if (result()) {
+      return "Close";
+    }
+    
+    return "Cancel";
+  };
+
   const handleMinimize = () => {
     if (isMinimized()) {
       // Restoring from minimized state
@@ -197,8 +242,9 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
       emit('panel-minimize-state', {
         isMinimized: false,
         showIndicator: false,
-        title: props.title
-      });
+        title: props.title,
+        result: result()?.success ? 'success' : (result() ? 'error' : 'in-progress')
+      } as MinimizedState);
       setTimeout(() => setIsMinimizing(false), 300);
     } else {
       // Minimizing the panel
@@ -207,8 +253,9 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
       emit('panel-minimize-state', {
         isMinimized: true,
         showIndicator: true,
-        title: props.title
-      });
+        title: props.title,
+        result: result()?.success ? 'success' : (result() ? 'error' : 'in-progress')
+      } as MinimizedState);
       setTimeout(() => setIsMinimizing(false), 300);
     }
   };
@@ -223,8 +270,9 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
       emit('panel-minimize-state', {
         isMinimized: false,
         showIndicator: false,
-        title: props.title
-      });
+        title: props.title,
+        result: result()?.success ? 'success' : (result() ? 'error' : 'in-progress')
+      } as MinimizedState);
       setTimeout(() => setIsMinimizing(false), 300);
     }).then((unlistenFn) => {
       unlisten = unlistenFn;
@@ -348,8 +396,16 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
                           {props.nextStep?.buttonLabel}
                       </button>
                   </Show>
-                  <button class="btn btn-sm" onClick={handleCloseOrCancel}>
-                      { result() || scanWarning() ? 'Close' : 'Cancel' }
+                  <button 
+                    classList={{
+                      "btn btn-sm": true,
+                      "btn-error": (!result() && !scanWarning()) || (!!result() && !result()!.success && !scanWarning()), // Red for cancel or failed close
+                      "btn-primary": !!result() && result()!.success && !scanWarning(), // Green for success close
+                      "btn-warning": !!scanWarning() // Yellow for scan warning cancel
+                    }}
+                    onClick={handleCloseOrCancel}
+                  >
+                    {getCloseButtonText()}
                   </button>
               </div>
             </div>

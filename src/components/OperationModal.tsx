@@ -192,6 +192,16 @@ function OperationModal(props: OperationModalProps) {
     return props.title;
   };
 
+  const getCloseButtonText = () => {
+    if (result()) {
+      return 'Close';
+    } else if (scanWarning()) {
+      return 'Close';
+    } else {
+      return 'Cancel';
+    }
+  };
+
   return (
     <Show when={!!props.title}>
       <div class="modal modal-open backdrop-blur-sm" role="dialog">
@@ -229,20 +239,27 @@ function OperationModal(props: OperationModalProps) {
             </div>
           </Show>
 
-          <div class="modal-action">
+          <div class="flex justify-end p-4 gap-2 border-t border-base-300">
             <Show when={scanWarning()}>
               <button class="btn btn-warning" onClick={handleInstallAnyway}>
                 <TriangleAlert class="w-4 h-4 mr-2" />
                 Install Anyway
               </button>
             </Show>
-            <Show when={showNextStep()}>
-              <button class="btn btn-info" onClick={handleNextStepClick}>
+            <Show when={showNextStep() && props.nextStep}>
+              <button class="btn btn-primary btn-sm" onClick={handleNextStepClick}>
                 {props.nextStep?.buttonLabel}
               </button>
             </Show>
-            <button class="btn" onClick={handleCloseOrCancel}>
-              {result() || scanWarning() ? 'Close' : 'Cancel'}
+            <button 
+              classList={{
+                "btn btn-sm": true,
+                "btn-error": !result() || (result() && !result()?.success), // Red for cancel or failed close
+                "btn-primary": result()?.success // Green for success close
+              }}
+              onClick={handleCloseOrCancel}
+            >
+              {getCloseButtonText()}
             </button>
           </div>
         </div>
