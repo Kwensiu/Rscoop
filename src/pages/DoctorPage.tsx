@@ -8,14 +8,14 @@ import ShimManager from "../components/page/doctor/ShimManager";
 import ScoopInfo from "../components/page/doctor/ScoopInfo";
 import ScoopProxySettings from "../components/page/settings/ScoopProxySettings";
 import CommandInputField from "../components/page/doctor/CommandInputField";
-import FloatingOperationPanel from "../components/FloatingOperationPanel";
 import installedPackagesStore from "../stores/installedPackagesStore";
+import { usePackageOperations } from "../hooks/usePackageOperations";
 
 const CACHE_DIR = "cache";
 const SHIMS_DIR = "shims";
 
 function DoctorPage() {
-    const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
+    const packageOperations = usePackageOperations();
     const [installingHelper, setInstallingHelper] = createSignal<string | null>(null);
 
     // State lifted from Checkup.tsx
@@ -98,7 +98,7 @@ function DoctorPage() {
         }
         
         setActiveOperations(prev => new Set(prev).add(operationId));
-        setOperationTitle(title);
+        packageOperations.setOperationTitle(title);
         command.then(() => {
             // Operation succeeded
             console.log(`Operation "${title}" completed successfully`);
@@ -130,13 +130,6 @@ function DoctorPage() {
             invoke("cleanup_outdated_cache"),
             "cleanup-cache"
         );
-    };
-    
-    const handleCloseOperationModal = (wasSuccess: boolean) => {
-        setOperationTitle(null);
-        if (wasSuccess) {
-            runCheckup();
-        }
     };
     
     const getScoopSubPath = (subPath: string) => {
@@ -174,7 +167,14 @@ function DoctorPage() {
         }
     };
     
+    const removeCloseListener = packageOperations.addCloseListener((wasSuccess) => {
+        if (wasSuccess) {
+            runCheckup();
+        }
+    });
+    
     onCleanup(() => {
+        removeCloseListener();
         setActiveOperations(new Set<string>());
     });
     
@@ -220,10 +220,6 @@ function DoctorPage() {
           </Show>
         </div>
       </div>
-      <FloatingOperationPanel 
-        title={operationTitle()}
-        onClose={handleCloseOperationModal}
-      />
     </>
   );
 }

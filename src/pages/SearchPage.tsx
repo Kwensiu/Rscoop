@@ -1,5 +1,4 @@
 import PackageInfoModal from "../components/PackageInfoModal";
-import FloatingOperationPanel from "../components/FloatingOperationPanel";
 
 import { useSearch } from "../hooks/useSearch";
 import { usePackageOperations } from "../hooks/usePackageOperations";
@@ -20,15 +19,10 @@ function SearchPage() {
     info,
     infoLoading,
     infoError,
-    operationTitle,
-    operationNextStep,
-    isScanning,
     handleInstall,
     handleUninstall,
-    handleInstallConfirm,
     fetchPackageInfo,
     closeModal,
-    closeOperationModal,
     restoreSearchResults,
     cleanup
   } = useSearch();
@@ -72,7 +66,7 @@ function SearchPage() {
           onInstall={handleInstall}
           onPackageStateChanged={() => {
             // This will be called when install buttons are clicked
-            // The actual refresh will happen in closeOperationModal when the operation completes
+            // Refresh is handled by the global operation close listener once the operation completes
           }}
           currentPage={currentPage()}
           onPageChange={setCurrentPage}
@@ -88,18 +82,11 @@ function SearchPage() {
         onInstall={handleInstall}
         onUninstall={handleUninstall}
         onUpdate={packageOperations.handleUpdate}
-        setOperationTitle={operationTitle}
+        setOperationTitle={packageOperations.setOperationTitle}
         onPackageStateChanged={() => {
           // This will be called when install/uninstall buttons are clicked
-          // The actual refresh will happen in closeOperationModal when the operation completes
+          // Refresh is handled by the global operation close listener once the operation completes
         }}
-      />
-      <FloatingOperationPanel
-        title={operationTitle()}
-        onClose={closeOperationModal}
-        isScan={isScanning()}
-        onInstallConfirm={handleInstallConfirm}
-        nextStep={operationNextStep() ?? undefined}
       />
     </div>
   );

@@ -9,7 +9,6 @@ import PackageGridView from "../components/page/installed/PackageGridView";
 import { View } from "../types/scoop";
 import ConfirmationModal from "../components/ConfirmationModal";
 import { createStoredSignal } from "../hooks/createStoredSignal";
-import FloatingOperationPanel from "../components/FloatingOperationPanel";
 
 interface InstalledPageProps {
   onNavigate?: (view: View) => void;
@@ -27,9 +26,7 @@ function InstalledPage(props: InstalledPageProps) {
     sortKey, sortDirection,
     selectedBucket, setSelectedBucket,
     selectedPackage, info, infoLoading, infoError,
-    operationTitle,
     setOperationTitle,
-    operationNextStep,
     operatingOn,
     scoopStatus,
     statusLoading,
@@ -49,7 +46,6 @@ function InstalledPage(props: InstalledPageProps) {
     handleFetchPackageInfoForVersions,
     handleCloseInfoModalWithVersions,
     autoShowVersions,
-    handleCloseOperationModal,
     fetchInstalledPackages,
     checkForUpdates,
     // Change bucket states
@@ -270,11 +266,6 @@ function InstalledPage(props: InstalledPageProps) {
         onPackageStateChanged={fetchInstalledPackages}
         onChangeBucket={handleOpenChangeBucket}
         setOperationTitle={setOperationTitle}
-      />
-      <FloatingOperationPanel
-        title={operationTitle()}
-        onClose={handleCloseOperationModal}
-        nextStep={operationNextStep() ?? undefined}
       />
       <ScoopStatusModal
         isOpen={showStatusModal()}

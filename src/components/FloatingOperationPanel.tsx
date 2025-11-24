@@ -1,4 +1,5 @@
 import { createSignal, createEffect, onCleanup, For, Show, Component } from "solid-js";
+import { Portal } from "solid-js/web";
 import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
@@ -256,7 +257,7 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
   });
 
   return (
-    <>
+    <Portal>
       <Show when={rendered() && !isMinimized()}>
         <div class="fixed inset-0 flex items-center justify-center z-50 p-2">
           <Show when={!isMinimized()}>
@@ -355,7 +356,7 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
           </Show>
         </div>
       </Show>
-    </>
+    </Portal>
   );
 }
 

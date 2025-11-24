@@ -500,6 +500,9 @@ function App() {
                 <FloatingOperationPanel
                     title={packageOperations.operationTitle()}
                     onClose={packageOperations.closeOperationModal}
+                    nextStep={packageOperations.operationNextStep() ?? undefined}
+                    isScan={packageOperations.isScanning()}
+                    onInstallConfirm={packageOperations.handleInstallConfirm}
                 />
                 <MinimizedIndicator 
                     title={minimizedState().title}

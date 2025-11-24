@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
 import { usePackageOperations } from "./usePackageOperations";
 import { usePackageInfo } from "./usePackageInfo";
-import { OperationNextStep } from "../types/operations";
 import { createStoredSignal } from "./createStoredSignal";
 
 interface UseSearchReturn {
@@ -24,14 +23,8 @@ interface UseSearchReturn {
   fetchPackageInfo: (pkg: ScoopPackage) => Promise<void>;
   closeModal: () => void;
   
-  // From usePackageOperations (with enhanced closeOperationModal)
-  operationTitle: () => string | null;
-  operationNextStep: () => OperationNextStep | null;
-  isScanning: () => boolean;
   handleInstall: (pkg: ScoopPackage) => void;
   handleUninstall: (pkg: ScoopPackage) => void;
-  handleInstallConfirm: () => void;
-  closeOperationModal: (wasSuccess: boolean) => void;
 
   // Cleanup function
   cleanup: () => void;
@@ -123,13 +116,21 @@ export function useSearch(): UseSearchReturn {
         }
     };
 
-    // Function to refresh search results after package operations
     const refreshSearchResults = async () => {
         if (searchTerm().trim() !== "") {
             console.log('Refreshing search results after package operation...');
             await handleSearch();
         }
     };
+
+    createEffect(() => {
+        const unsubscribe = packageOperations.addCloseListener((wasSuccess) => {
+            if (wasSuccess) {
+                refreshSearchResults();
+            }
+        });
+        return unsubscribe;
+    });
 
     // Restore search results from cache
     const restoreSearchResults = () => {
@@ -178,15 +179,6 @@ export function useSearch(): UseSearchReturn {
         }
     };
 
-    // Enhanced close operation modal that refreshes search results
-    const closeOperationModal = (wasSuccess: boolean) => {
-        packageOperations.closeOperationModal(wasSuccess);
-        if (wasSuccess) {
-            // Refresh search results to reflect installation state changes
-            refreshSearchResults();
-        }
-    };
-
     const packageResults = () => results().filter((p) => p.match_source === "name");
     const binaryResults = () => results().filter((p) => p.match_source === "binary");
     const resultsToShow = () => {
@@ -211,14 +203,8 @@ export function useSearch(): UseSearchReturn {
         fetchPackageInfo: packageInfo.fetchPackageInfo,
         closeModal: packageInfo.closeModal,
         
-        // From usePackageOperations (with enhanced closeOperationModal)
-        operationTitle: packageOperations.operationTitle,
-        operationNextStep: packageOperations.operationNextStep,
-        isScanning: packageOperations.isScanning,
         handleInstall: packageOperations.handleInstall,
         handleUninstall: packageOperations.handleUninstall,
-        handleInstallConfirm: packageOperations.handleInstallConfirm,
-        closeOperationModal,
 
         // Cleanup function
         cleanup,
