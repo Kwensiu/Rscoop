@@ -1,4 +1,4 @@
-import { createSignal, Show, onMount, createMemo, createEffect } from "solid-js";
+import { createSignal, Show, onMount, createMemo, createEffect, onCleanup } from "solid-js";
 import "./App.css";
 import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
@@ -9,9 +9,10 @@ import SettingsPage from "./pages/SettingsPage.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
 import FloatingOperationPanel from "./components/FloatingOperationPanel.tsx";
+import MinimizedIndicator from "./components/MinimizedIndicator.tsx";
 import AnimatedButton from "./components/AnimatedButton";
 import OperationModal from "./components/OperationModal.tsx";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
 import { createStoredSignal } from "./hooks/createStoredSignal";
 import { check, Update } from "@tauri-apps/plugin-updater";
@@ -75,6 +76,39 @@ function App() {
 
     // Auto-update modal state
     const [autoUpdateTitle, setAutoUpdateTitle] = createSignal<string | null>(null);
+
+    // Minimized state
+    const [minimizedState, setMinimizedState] = createSignal({
+        isMinimized: false,
+        showIndicator: false,
+        title: ""
+    });
+
+    // Listen for minimize events from FloatingOperationPanel
+    createEffect(() => {
+        const handleMinimizeEvent = (event: any) => {
+            setMinimizedState(event.payload);
+        };
+        
+        let unlisten: (() => void) | undefined;
+        listen('panel-minimize-state', handleMinimizeEvent).then((unlistenFn) => {
+            unlisten = unlistenFn;
+        });
+        
+        onCleanup(() => {
+            if (unlisten) unlisten();
+        });
+    });
+
+    const handleMinimizedIndicatorClick = () => {
+        // Send event to restore the panel
+        emit('restore-panel');
+        setMinimizedState({
+            isMinimized: false,
+            showIndicator: false,
+            title: ""
+        });
+    };
 
     // Debug: track state changes
     createEffect(() => {
@@ -466,6 +500,11 @@ function App() {
                 <FloatingOperationPanel
                     title={packageOperations.operationTitle()}
                     onClose={packageOperations.closeOperationModal}
+                />
+                <MinimizedIndicator 
+                    title={minimizedState().title}
+                    visible={minimizedState().showIndicator}
+                    onClick={handleMinimizedIndicatorClick}
                 />
             </Show>
             <OperationModal

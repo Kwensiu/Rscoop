@@ -2,7 +2,7 @@ import { createSignal, createEffect, onCleanup, For, Show, Component } from "sol
 import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
-import { X, ShieldAlert, AlertTriangle, ExternalLink } from "lucide-solid";
+import { X, ShieldAlert, AlertTriangle, ExternalLink, Minimize2 } from "lucide-solid";
 import { isErrorLine } from "../utils/errorDetection";
 import { stripAnsi } from "../utils/ansiUtils";
 
@@ -95,6 +95,12 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
   const [isVisible, setIsVisible] = createSignal(false);
   const [isClosing, setIsClosing] = createSignal(false);
   const [rendered, setRendered] = createSignal(false);
+
+  // MinimizedIndicator
+  const [isMinimized, setIsMinimized] = createSignal(false);
+  const [isMinimizing, setIsMinimizing] = createSignal(false); // For animation purposes
+  const [showMinimizedIndicator, setShowMinimizedIndicator] = createSignal(false);
+
   let scrollRef: HTMLDivElement | undefined;
   
   // This effect now correctly manages the lifecycle of the listeners
@@ -140,6 +146,11 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
       setRendered(true);
       setTimeout(() => setIsVisible(true), 10);
       setupListeners();
+
+      setIsMinimized(false); // Reset minimized state when new operation starts
+      setIsMinimizing(false); // Reset minimizing animation state
+      setShowMinimizedIndicator(false); // Hide minimized indicator
+
     }
 
     // This cleanup runs whenever the effect re-runs or the component is unmounted.
@@ -177,6 +188,52 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
     }
   };
 
+  const handleMinimize = () => {
+    if (isMinimized()) {
+      // Restoring from minimized state
+      setIsMinimizing(true);
+      setIsMinimized(false);
+      emit('panel-minimize-state', {
+        isMinimized: false,
+        showIndicator: false,
+        title: props.title
+      });
+      setTimeout(() => setIsMinimizing(false), 300);
+    } else {
+      // Minimizing the panel
+      setIsMinimizing(true);
+      setIsMinimized(true);
+      emit('panel-minimize-state', {
+        isMinimized: true,
+        showIndicator: true,
+        title: props.title
+      });
+      setTimeout(() => setIsMinimizing(false), 300);
+    }
+  };
+
+  // Listen for restore event from the global indicator
+  createEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen('restore-panel', () => {
+      // Restoring from minimized state
+      setIsMinimizing(true);
+      setIsMinimized(false);
+      emit('panel-minimize-state', {
+        isMinimized: false,
+        showIndicator: false,
+        title: props.title
+      });
+      setTimeout(() => setIsMinimizing(false), 300);
+    }).then((unlistenFn) => {
+      unlisten = unlistenFn;
+    });
+    
+    onCleanup(() => {
+      if (unlisten) unlisten();
+    });
+  });
+
   const handleInstallAnyway = () => {
     props.onInstallConfirm?.();
   };
@@ -190,7 +247,7 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
 
   // Scroll to bottom when new output is added
   createEffect(() => {
-    if (scrollRef && output().length > 0) {
+    if (scrollRef && output().length > 0 && !isMinimized()) {
       // Use requestAnimationFrame to ensure DOM is updated before scrolling
       requestAnimationFrame(() => {
         scrollRef!.scrollTop = scrollRef!.scrollHeight;
@@ -199,92 +256,106 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
   });
 
   return (
-    <Show when={rendered()}>
-      <div class="fixed inset-0 flex items-center justify-center z-50 p-2">
-        <div 
-          class="absolute inset-0 transition-all duration-300 ease-out"
-          classList={{
-            "opacity-0": !isVisible(),
-            "opacity-100": isVisible() && !isClosing(),
-          }}
-          style="background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(2px);"
-          onClick={handleCloseOrCancel}
-        ></div>
-        <div 
-          class="relative bg-base-200 rounded-xl shadow-2xl border border-base-300 w-full max-w-lg sm:max-w-lg md:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col transition-all duration-300 ease-out"
-          classList={{
-            "scale-90 opacity-0 translate-y-4": !isVisible() || isClosing(),
-            "scale-100 opacity-100 translate-y-0": isVisible() && !isClosing(),
-          }}
-        >
-          <div class="flex justify-between items-center p-4 border-b border-base-300">
-            <h3 class="font-bold text-lg truncate">{props.title}</h3>
-            <button 
-              class="btn btn-sm btn-circle btn-ghost hover:bg-base-300 transition-colors duration-200"
-              onClick={handleCloseOrCancel}
+    <>
+      <Show when={rendered() && !isMinimized()}>
+        <div class="fixed inset-0 flex items-center justify-center z-50 p-2">
+          <Show when={!isMinimized()}>
+            <div 
+              class="absolute inset-0 transition-all duration-300 ease-out"
+              classList={{
+                "opacity-0": !isVisible() || isMinimizing(),
+                "opacity-100": isVisible() && !isClosing() && !isMinimizing(),
+              }}
+              style="background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(2px);"
+              onClick={handleMinimize}
+            ></div>
+          </Show>
+          <Show when={!isMinimized()}>
+            <div 
+              class="relative bg-base-200 rounded-xl shadow-2xl border border-base-300 w-full max-w-lg sm:max-w-lg md:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col transition-all duration-300 ease-out"
+              classList={{
+                "scale-90 opacity-0 translate-y-4": !isVisible() || isClosing() || isMinimizing(),
+                "scale-100 opacity-100 translate-y-0": isVisible() && !isClosing() && !isMinimizing(),
+              }}
             >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-          
-          <div 
-            ref={scrollRef}
-            class="bg-black text-white font-mono text-xs p-4 rounded-lg mx-4 my-3 overflow-y-auto flex-grow"
-            style="white-space: pre-wrap; word-break: break-word;"
-          >
-            <For each={output()}>
-              {(line) => (
-                <div class="mb-1">
-                  <LineWithLinks 
-                    line={line.line} 
-                    isStderr={line.source === 'stderr'} 
-                  />
+              <div class="flex justify-between items-center p-4 border-b border-base-300">
+                <h3 class="font-bold text-lg truncate">{props.title}</h3>
+                <div class="flex space-x-2">
+                  <button 
+                    class="btn btn-sm btn-circle btn-ghost hover:bg-base-300 transition-colors duration-200"
+                    onClick={handleMinimize}
+                  >
+                    <Minimize2 class="w-5 h-5" />
+                  </button>
+                  <button 
+                    class="btn btn-sm btn-circle btn-ghost hover:bg-base-300 transition-colors duration-200"
+                    onClick={handleCloseOrCancel}
+                  >
+                    <X class="w-5 h-5" />
+                  </button>
                 </div>
-              )}
-            </For>
-            <Show when={!result() && !scanWarning()}>
-              <div class="flex items-center animate-pulse mt-2">
-                <span class="loading loading-spinner loading-xs mr-2"></span>
-                In progress...
               </div>
-            </Show>
-          </div>
-          
-          <Show when={scanWarning()}>
-              <div class="alert alert-warning mx-4 my-2 rounded-lg">
-                  <ShieldAlert class="w-6 h-6" />
-                  <div>
-                    <div class="font-bold">VirusTotal Scan Warning</div>
-                    <div>{scanWarning()!.message}</div>
+              
+              <div 
+                ref={scrollRef}
+                class="bg-black text-white font-mono text-xs p-4 rounded-lg mx-4 my-3 overflow-y-auto flex-grow"
+                style="white-space: pre-wrap; word-break: break-word;"
+              >
+                <For each={output()}>
+                  {(line) => (
+                    <div class="mb-1">
+                      <LineWithLinks 
+                        line={line.line} 
+                        isStderr={line.source === 'stderr'} 
+                      />
+                    </div>
+                  )}
+                </For>
+                <Show when={!result() && !scanWarning()}>
+                  <div class="flex items-center animate-pulse mt-2">
+                    <span class="loading loading-spinner loading-xs mr-2"></span>
+                    In progress...
                   </div>
+                </Show>
               </div>
-          </Show>
-
-          <Show when={result()}>
-              <div class="alert mx-4 my-2 rounded-lg" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
-                  <span>{result()!.message}</span>
-              </div>
-          </Show>
-
-          <div class="flex justify-end p-4 gap-2 border-t border-base-300">
+              
               <Show when={scanWarning()}>
-                  <button class="btn btn-warning btn-sm" onClick={handleInstallAnyway}>
-                      <AlertTriangle class="w-4 h-4 mr-2" />
-                      Install Anyway
-                  </button>
+                  <div class="alert alert-warning mx-4 my-2 rounded-lg">
+                      <ShieldAlert class="w-6 h-6" />
+                      <div>
+                        <div class="font-bold">VirusTotal Scan Warning</div>
+                        <div>{scanWarning()!.message}</div>
+                      </div>
+                  </div>
               </Show>
-              <Show when={showNextStep()}>
-                  <button class="btn btn-primary btn-sm" onClick={handleNextStepClick}>
-                      {props.nextStep?.buttonLabel}
-                  </button>
+
+              <Show when={result()}>
+                  <div class="alert mx-4 my-2 rounded-lg" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
+                      <span>{result()!.message}</span>
+                  </div>
               </Show>
-              <button class="btn btn-sm" onClick={handleCloseOrCancel}>
-                  { result() || scanWarning() ? 'Close' : 'Cancel' }
-              </button>
-          </div>
+
+              <div class="flex justify-end p-4 gap-2 border-t border-base-300">
+                  <Show when={scanWarning()}>
+                      <button class="btn btn-warning btn-sm" onClick={handleInstallAnyway}>
+                          <AlertTriangle class="w-4 h-4 mr-2" />
+                          Install Anyway
+                      </button>
+                  </Show>
+                  <Show when={showNextStep()}>
+                      <button class="btn btn-primary btn-sm" onClick={handleNextStepClick}>
+                          {props.nextStep?.buttonLabel}
+                      </button>
+                  </Show>
+                  <button class="btn btn-sm" onClick={handleCloseOrCancel}>
+                      { result() || scanWarning() ? 'Close' : 'Cancel' }
+                  </button>
+              </div>
+            </div>
+          </Show>
         </div>
-      </div>
-    </Show>
+      </Show>
+    </>
   );
 }
 

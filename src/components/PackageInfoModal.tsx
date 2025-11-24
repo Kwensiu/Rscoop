@@ -533,10 +533,10 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               <Show when={props.pkg?.is_installed}>
                 <button
                   type="button"
-                  class="btn"
+                  class="btn w-24"
                   classList={{ 
                     "btn-primary": !!props.pkg?.available_version && !updateConfirm(),
-                    "btn-secondary": !props.pkg?.available_version && !updateConfirm(),
+                    "btn-soft text-base-content/50": !props.pkg?.available_version && !updateConfirm(),
                     "btn-warning": updateConfirm()
                   }}
                   onClick={() => {
@@ -638,7 +638,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                 <Show when={props.pkg?.is_installed}>
                   <button
                     type="button"
-                    class="btn btn-error mr-2"
+                    class="btn btn-error mr-2 w-32"
                     classList={{ "btn-warning": uninstallConfirm() }}
                     onClick={() => {
                       if (uninstallConfirm()) {
