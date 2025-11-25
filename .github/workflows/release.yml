@@ -95,4 +95,3 @@ jobs:
             ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig,
             ./update.json
           artifactErrorsFailBuild: true
-

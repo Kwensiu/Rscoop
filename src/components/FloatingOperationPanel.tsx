@@ -3,7 +3,7 @@ import { Portal } from "solid-js/web";
 import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
-import { X, ShieldAlert, AlertTriangle, ExternalLink, Minimize2, CheckCircle, XCircle } from "lucide-solid";
+import { X, ShieldAlert, AlertTriangle, ExternalLink, Minimize2 } from "lucide-solid";
 import { isErrorLine } from "../utils/errorDetection";
 import { stripAnsi } from "../utils/ansiUtils";
 
@@ -108,7 +108,6 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
   // MinimizedIndicator
   const [isMinimized, setIsMinimized] = createSignal(false);
   const [isMinimizing, setIsMinimizing] = createSignal(false); // For animation purposes
-  const [showMinimizedIndicator, setShowMinimizedIndicator] = createSignal(false);
 
   let scrollRef: HTMLDivElement | undefined;
   
@@ -176,7 +175,6 @@ function FloatingOperationPanel(props: FloatingOperationPanelProps) {
 
       setIsMinimized(false); // Reset minimized state when new operation starts
       setIsMinimizing(false); // Reset minimizing animation state
-      setShowMinimizedIndicator(false); // Hide minimized indicator
       
       // Emit initial minimized state with in-progress status
       emit('panel-minimize-state', {

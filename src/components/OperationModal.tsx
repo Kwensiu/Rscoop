@@ -254,7 +254,7 @@ function OperationModal(props: OperationModalProps) {
             <button 
               classList={{
                 "btn btn-sm": true,
-                "btn-error": !result() || (result() && !result()?.success), // Red for cancel or failed close
+                "btn-error": !result() || (result() ? !result()?.success : false), // Red for cancel or failed close
                 "btn-primary": result()?.success // Green for success close
               }}
               onClick={handleCloseOrCancel}
