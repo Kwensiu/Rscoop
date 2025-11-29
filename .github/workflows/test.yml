@@ -6,82 +6,98 @@ on:
       - test
 
 permissions:
-  contents: read
+  contents: write
+
+env:
+  NODE_VERSION: '20'
+  RUST_TOOLCHAIN: 'stable'
 
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      NODE_VERSION: '20'
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      product: ${{ steps.meta.outputs.product }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
 
-      # Cache Rust dependencies and build artifacts (cargo registry, git, and target dir)
-      # Swatinem/rust-cache handles lockfile hashing and cache priming automatically.
-      - name: Cache Rust build
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-v${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-v${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-node-
+
+      - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             src-tauri -> target
+          key: ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install system dependencies (UPX)
-        run: choco install upx -y
+      - name: Install UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          install-only: true
 
       - name: Install project dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit
 
-      # One command builds frontend, compiles Rust, and bundles installers
-      # Remove public key from config to completely disable signing
-      - name: Prepare config for unsigned build
-        run: |
-          # Create a temporary config without public key
-          $config = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
-          $originalPubkey = $config.plugins.updater.pubkey
-          $config.plugins.updater.pubkey = ""
-          $config | ConvertTo-Json -Depth 10 | Out-File "src-tauri/tauri-no-sign.json" -Encoding utf8
-          Write-Host "Original pubkey temporarily removed for build"
-          
-      - name: Build & bundle application (Tauri)
-        run: |
-          # Use the config without public key
-          Copy-Item "src-tauri/tauri-no-sign.json" "src-tauri/tauri.conf.json" -Force
-          npm run tauri build
-          
-      - name: Restore original config
-        run: |
-          # Restore the original config (in case needed for other steps)
-          $config = Get-Content "src-tauri/tauri-no-sign.json" -Raw | ConvertFrom-Json
-          $config.plugins.updater.pubkey = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgREUzNDBBOUZCRkZGMzg5Qg0KUldTYk9QKy9ud28wM21SRUdEd25sNXdtNXZyZVFZcWNFUDN3MDVUdEhGSHRKVXowVmVQbHVCUVcNCg=="
-          $config | ConvertTo-Json -Depth 10 | Out-File "src-tauri/tauri.conf.json" -Encoding utf8
-          Write-Host "Original pubkey restored"
-
-      - name: Extract metadata (product name & version)
+      - name: Extract metadata
         id: meta
         shell: pwsh
         run: |
-          $cfg = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          $cfg = Get-Content src-tauri/tauri.conf.test.json | ConvertFrom-Json
           "version=$($cfg.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "product=$($cfg.productName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Compress executable with UPX
-        run: upx --best --lzma src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
+      - name: Build & bundle application (Tauri)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $env:CARGO_TERM_COLOR = "always"
+          $env:RUSTFLAGS = "-C target-cpu=native"
+          npm run tauri -- build --config src-tauri/tauri.conf.test.json --verbose
 
-      - name: Upload artifacts
+      - name: Compress executable with UPX
+        if: ${{ steps.meta.outputs.product != '' }}
+        run: |
+          $exePath = "src-tauri/target/release/${{ steps.meta.outputs.product }}.exe"
+          if (Test-Path $exePath) {
+            upx --best --lzma $exePath
+          } else {
+            Write-Host "Executable not found at $exePath, skipping compression"
+          }
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.meta.outputs.product }}-${{ steps.meta.outputs.version }}-test-build
+          name: ${{ steps.meta.outputs.product }}-${{ steps.meta.outputs.version }}-build
+          retention-days: 7
           path: |
             ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
-            ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
+            ./src-tauri/target/release/bundle/msi/
+          if-no-files-found: error
+

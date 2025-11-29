@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "rscoop-test",
+  "version": "1.4.65-test",
+  "identifier": "com.rscoop.test",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Rscoop (Test Build)",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": [
+        "default"
+      ]
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgREUzNDBBOUZCRkZGMzg5Qg0KUldTYk9QKy9ud28wM21SRUdEd25sNXdtNXZyZVFZcWNFUDN3MDVUdEhGSHRKVXowVmVQbHVCUVcNCg==",
+      "endpoints": [
+        "https://github.com/Kwensiu/Rscoop/releases/latest/download/update.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    },
+    "store": null,
+    "dialog": null
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "wix": {
+        "fragmentPaths": [
+          "./windows/fragments/env-refresh.wxs"
+        ]
+      }
+    }
+  }
+}
