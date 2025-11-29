@@ -43,25 +43,17 @@ jobs:
         run: npm ci
 
       # One command builds frontend, compiles Rust, and bundles installers
-      # Build frontend first, then build Rust with no signing
-      - name: Build frontend
-        run: npm run build
-        
-      - name: Build Rust bundle without signing
-        run: |
-          cd src-tauri
-          
-          # Clear every possible signing environment variable
-          $env:TAURI_PRIVATE_KEY = ""
-          $env:TAURI_SIGNING_PRIVATE_KEY = ""
-          $env:TAURI_KEY_PASSWORD = ""
-          $env:TAURI_APP_PRIVATE_KEY = ""
-          $env:CARGO_TAURI_PRIVATE_KEY = ""
-          $env:APPLE_SIGNING_IDENTITY = ""
-          $env:WINDOWS_SIGNING_CERT = ""
-          
-          # Build using cargo tauri directly
-          cargo tauri build --bundles msi --no-verify-signature
+      # Use environment block to clear signing variables
+      - name: Build & bundle application (Tauri)
+        env:
+          TAURI_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_KEY_PASSWORD: ""
+          TAURI_APP_PRIVATE_KEY: ""
+          CARGO_TAURI_PRIVATE_KEY: ""
+          APPLE_SIGNING_IDENTITY: ""
+          WINDOWS_SIGNING_CERT: ""
+        run: npm run tauri build
 
       - name: Extract metadata (product name & version)
         id: meta
