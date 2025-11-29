@@ -43,9 +43,12 @@ jobs:
         run: npm ci
 
       # One command builds frontend, compiles Rust, and bundles installers
-      # No signing for test builds
+      # Disable signing for test builds
       - name: Build & bundle application (Tauri)
-        run: npm run tauri -- build
+        env:
+          TAURI_PRIVATE_KEY: ""
+          TAURI_KEY_PASSWORD: ""
+        run: npm run tauri build
 
       - name: Extract metadata (product name & version)
         id: meta
