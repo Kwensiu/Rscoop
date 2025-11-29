@@ -22,6 +22,9 @@ export default defineConfig(({ command, mode }) => ({
     assetsDir: './',
     outDir: 'dist',
     emptyOutDir: true,
+    // Optimize for Tauri production builds
+    minify: 'esbuild',
+    sourcemap: false, // Disable sourcemap in production to prevent issues
     // This ensures that the base is correctly set in the built files
     rollupOptions: {
       output: {

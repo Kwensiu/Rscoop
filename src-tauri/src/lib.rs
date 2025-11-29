@@ -7,6 +7,7 @@ mod tray;
 pub mod utils;
 
 use std::path::PathBuf;
+use std::env;
 use crate::commands::settings::detect_scoop_path;
 use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_log::{Target, TargetKind};
@@ -22,6 +23,42 @@ mod config_keys {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Set up panic handler for better crash reporting
+    std::panic::set_hook(Box::new(|panic_info| {
+        let location = panic_info.location().unwrap_or_else(|| panic_info.location().unwrap());
+        let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "Unknown panic message".to_string()
+        };
+        
+        eprintln!("PANIC: {} at {}:{}:{}", 
+            message, 
+            location.file(), 
+            location.line(), 
+            location.column()
+        );
+        
+        // Try to write to log file if possible
+        if let Some(log_dir) = dirs::data_local_dir().map(|dir| dir.join("rscoop").join("logs")) {
+            if let Ok(mut log_file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_dir.join("panic.log")) 
+            {
+                use std::io::Write;
+                let _ = writeln!(log_file, "[{}] PANIC: {} at {}:{}:{}", 
+                    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"),
+                    message,
+                    location.file(),
+                    location.line(),
+                    location.column()
+                );
+            }
+        }
+    }));
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -62,7 +99,11 @@ pub fn run() {
                 file_name: None,
             }),
         ])
-        .level(log::LevelFilter::Trace)
+        .level(if cfg!(debug_assertions) { 
+            log::LevelFilter::Trace 
+        } else { 
+            log::LevelFilter::Info 
+        })
         .level_for("lnk", log::LevelFilter::Warn)
         .level_for("reqwest", log::LevelFilter::Warn)
         .level_for("tauri_plugin_updater", log::LevelFilter::Debug)
@@ -72,23 +113,43 @@ pub fn run() {
         .plugin(log_plugin)
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
-            // Windows-specific setup
+            // Windows-specific setup with better error handling
             #[cfg(windows)]
-            setup_windows_specific(app)?;
-
-            // Resolve Scoop path
-            let scoop_path = resolve_scoop_path(app.handle().clone())?;
-            app.manage(state::AppState::new(scoop_path));
-
-            // Show the main application window
-            show_main_window(app)?;
-
-            // Setup system tray
-            if let Err(e) = tray::setup_system_tray(&app.handle()) {
-                log::error!("Failed to setup system tray: {}", e);
+            {
+                if let Err(e) = setup_windows_specific(app) {
+                    log::error!("Windows-specific setup failed: {}, continuing with limited functionality", e);
+                    // Don't fail the entire setup for non-critical features
+                }
             }
 
-            // Start background tasks
+            // Resolve Scoop path with fallback
+            let scoop_path = match resolve_scoop_path(app.handle().clone()) {
+                Ok(path) => {
+                    log::info!("Successfully resolved Scoop path: {}", path.display());
+                    path
+                }
+                Err(e) => {
+                    log::error!("Failed to resolve Scoop path: {}, using fallback", e);
+                    // Use a reasonable fallback path
+                    std::path::PathBuf::from(std::env::var("USERPROFILE").unwrap_or_else(|_| "C:\\".to_string()))
+                        .join("scoop")
+                }
+            };
+            app.manage(state::AppState::new(scoop_path));
+
+            // Show the main application window with error recovery
+            if let Err(e) = show_main_window(app) {
+                log::error!("Failed to show main window: {}", e);
+                return Err(format!("Critical error: Cannot show main window: {}", e).into());
+            }
+
+            // Setup system tray with graceful degradation
+            match tray::setup_system_tray(&app.handle()) {
+                Ok(_) => log::info!("System tray setup successful"),
+                Err(e) => log::warn!("Failed to setup system tray (non-critical): {}", e),
+            }
+
+            // Start background tasks with error handling
             start_background_tasks(app.handle().clone());
 
             Ok(())
