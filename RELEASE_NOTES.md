@@ -1,85 +1,69 @@
 
-# Release Notes 1.4.63
+# Release Notes 1.4.64
 
-## [1.4.63] - 2025-11-27
+## [1.4.64] - 2025-11-29
 
-## **FIX** 
-- 尝试修复了一个有关Buckets获取的严重错误
+## **修复 / Fixes**
+- **[Fix]** 优化了bucket搜索和缓存逻辑，移除了冗余状态管理
+  - 修复了`useBucketSearch`中的定时器类型定义，使用更通用的`ReturnType<typeof setTimeout>`
+  - 移除了`useBuckets`中未使用的`isForceRefreshing`状态及相关逻辑
+  - 移除了`BucketSearchResults`中未使用的`CircleCheckBig`图标导入
+  - 为`usePackageInfo`和`useSearch`添加了`updateSelectedPackage`方法，支持外部选择更新（未有实现）
 
-## [1.4.62] - 2025-11-27
+## **功能 / Features**
+- **[Add]** 搜索栏增强：回调了清除按钮
+- **[Add]** Scoop配置编辑：新增Scoop配置文件编辑功能，可直接在Doctor页面编辑JSON配置
+- **[Add]** 目录快捷访问：为多个组件添加了"打开目录"按钮，方便快速访问相关文件夹
 
-> 花费数天合并了大量内容，操作繁琐，可能出现问题但是我测试不出来
+## **改进 / Improvements**
+- **[Improvement]** Doctor页面全面重构：
+  - 所有组件统一使用Card框架，提升视觉一致性
+  - 为Card组件添加了`additionalContent`属性，支持额外内容展示
+  - 优化了图标布局和按钮组织，提供更直观的操作体验
+  - 移除了未使用的导入和逻辑，简化代码结构
 
----
+- **[Improvement]** 关于页面优化：
+  - 明确标识了这是一个Fork版本，维护者为Kwensiu
+  - 更新了版权信息，包含原始作者和Fork维护者
+  - 重新组织了链接布局，增加了Fork仓库的直达链接
 
-## **合并 / Merge**
-- **[Merge]** 各组件的 Card 框架  
-- **[Merge][Improvement]** 合并 `lib.rs` 并重构  
-
----
-
-## **Upstream**
-- **[Add]** Rscoop 现添加支持浅色主题，可在设置中手动切换  
-- **[Add]** 新增启动页面配置选项，可选择应用启动时打开的默认页面  
-- **[Improvement]** 使用 `git2` 库重写 Git 仓库信息读取逻辑，提高准确性  
-- **[Improvement]** 优化冷启动事件处理流程及自动清理旧版本逻辑  
-- **[Improvement]** 代码简化：大幅精简代码库，消除冗余并提升可维护性  
-- **[Improvement]** 可复用组件：引入一系列可复用的 UI 组件，确保应用程序视觉风格更统一  
-- **[Improvement]** UI 一致性：全局统一间距、色彩与字体排版，打造更精致专业的用户体验  
-- **[Improvement]** 优化弹窗：标准化并改进弹窗（存储桶信息、包信息），提升可读性和交互体验  
-
----
-
-## **其他改进**
-- **[Improvement]** 优化最小化组件与 `FloatingOperationModal` 组件（原 `FloatingOperationPanel`）的联动  
-- **[Other]** 更新依赖项：`baseline-browser-mapping`、`caniuse-lite` 和 `electron-to-chromium`  
-- **[Other]** 优化正则表达式解析器性能，并增强对多种 Markdown 表格格式的支持  
-
-> **注：**
-> - 代码库内部 Package 页面仍使用 `InstalledPage` 命名，便于现有代码管理  
-> - 在 Fork 项目中，`FloatingOperationPanel` 已改名为 `FloatingOperationModal`，且有意向合并到上游的 `OperationModal`，代替 `OperationModal` 的实现  
+- **[Improvement]** 设置页面增强：
+  - Scoop配置页面添加了刷新和目录打开按钮
+  - 代理设置页面使用Card组件重构，改进了UI布局
+  - 所有设置组件现在都支持快捷操作和实时状态反馈
 
 ---
 
 <details>
 <summary>English Version (Click to expand)</summary>
 
-### Release Notes 1.4.63
+# Release Notes 1.4.63
 
-## **FIX** 
-- Attempted to fix a critical bug related to Bucket retrieval
+## **Fixes**
+- **[Fix]** Optimized bucket search and caching logic with redundant state removal
+  - Fixed timer type definition in `useBucketSearch` using more generic `ReturnType<typeof setTimeout>`
+  - Removed unused `isForceRefreshing` state and related logic from `useBuckets`
+  - Removed unused `CircleCheckBig` icon import from `BucketSearchResults`
+  - Added `updateSelectedPackage` method to `usePackageInfo` and `useSearch` for external selection updates (Hasn't be implemented)
 
-### Release Notes 1.4.62
+## **Features**
+- **[Add]** Search Bar Enhancement: Re-added clear button
+- **[Add]** Scoop Configuration Editing: Added functionality to edit Scoop configuration file directly from Doctor page
+- **[Add]** Directory Quick Access: Added "Open Directory" buttons to multiple components for easy folder access
 
-> Spent a few days merging a ton of stuff, the process is tricky, could go wrong but I can't figure out what's wrong.
+## **Improvements**
+- **[Improvement]** Doctor Page Comprehensive Refactor:
+  - All components now use unified Card framework for improved visual consistency
+  - Added `additionalContent` property to Card component for extra content display
+  - Optimized icon layout and button organization for more intuitive operation experience
+  - Removed unused imports and logic to simplify code structure
 
----
+- **[Improvement]** About Page Optimization:
+  - Clearly identified this as a Fork version maintained by Kwensiu
+  - Updated copyright information to include both original author and Fork maintainer
+  - Reorganized link layout with direct access to Fork repository
 
-## **Merge**
-- **[Merge]** Card framework for all components  
-- **[Merge][Improvement]** Merged `lib.rs` and refactored  
-
----
-
-## **Upstream**
-- **[Add]** Rscoop now supports light theme; can be switched manually in settings  
-- **[Add]** Added startup page configuration option to choose the default page when the app launches  
-- **[Improvement]** Rewrote Git repository info reading logic using `git2` library for better accuracy  
-- **[Improvement]** Optimized cold start event handling and automatic cleanup of old versions  
-- **[Improvement]** Code simplification: significantly reduced codebase size, removed redundancy, and improved maintainability  
-- **[Improvement]** Reusable components: introduced a set of reusable UI components for a more consistent visual style across the app  
-- **[Improvement]** UI consistency: unified global spacing, colors, and typography for a more polished and professional user experience  
-- **[Improvement]** Popup optimization: standardized and improved popups (bucket info, package info) for better readability and interaction  
-
----
-
-## **Other Improvements**
-- **[Improvement]** Enhanced interaction between the minimize component and `FloatingOperationModal` (formerly `FloatingOperationPanel`)  
-- **[Other]** Updated dependencies: `baseline-browser-mapping`, `caniuse-lite`, and `electron-to-chromium`  
-- **[Other]** Improved regex parser performance and added support for multiple Markdown table formats  
-
-> **Note:**
-> - The internal Package page in the codebase still uses the name `InstalledPage` for easier management of existing code.  
-> - In the forked project, `FloatingOperationPanel` has been renamed to `FloatingOperationModal`, with plans to merge it into the upstream `OperationModal` to replace the current implementation.  
-
-</details>
+- **[Improvement]** Settings Page Enhancement:
+  - Scoop configuration page added refresh and directory open buttons
+  - Proxy settings page refactored using Card component with improved UI layout
+  - All settings components now support quick actions and real-time status feedback
