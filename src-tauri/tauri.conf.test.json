@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "rscoop-test",
+  "productName": "rscoop",
   "version": "1.4.651",
-  "identifier": "com.rscoop.test",
+  "identifier": "com.rscoop.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
