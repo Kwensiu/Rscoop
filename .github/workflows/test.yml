@@ -43,12 +43,13 @@ jobs:
         run: npm ci
 
       # One command builds frontend, compiles Rust, and bundles installers
-      # Disable signing for test builds
+      # Disable signing for test builds by clearing all signing environment variables
       - name: Build & bundle application (Tauri)
-        env:
-          TAURI_PRIVATE_KEY: ""
-          TAURI_KEY_PASSWORD: ""
-        run: npm run tauri build
+        run: |
+          $env:TAURI_PRIVATE_KEY = ""
+          $env:TAURI_SIGNING_PRIVATE_KEY = ""
+          $env:TAURI_KEY_PASSWORD = ""
+          npm run tauri build
 
       - name: Extract metadata (product name & version)
         id: meta
