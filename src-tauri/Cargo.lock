@@ -3862,7 +3862,7 @@ dependencies = [
 
 [[package]]
 name = "rscoop"
-version = "1.4.64.1"
+version = "1.4.65"
 dependencies = [
  "chrono",
  "csv",
