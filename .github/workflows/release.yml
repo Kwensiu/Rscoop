@@ -8,41 +8,54 @@ on:
 permissions:
   contents: write
 
+env:
+  NODE_VERSION: '20'
+  RUST_TOOLCHAIN: 'stable'
+
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      NODE_VERSION: '20'
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      product: ${{ steps.meta.outputs.product }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
       - name: Cache node modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-v${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
+            ${{ runner.os }}-node-v${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node-
 
-      # Cache Rust dependencies and build artifacts (cargo registry, git, and target dir)
-      # Swatinem/rust-cache handles lockfile hashing and cache priming automatically.
-      - name: Cache Rust build
+      - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             src-tauri -> target
-          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          save-if: ${{ github.ref_type == 'tag' }}
 
       - name: Install UPX
         uses: crazy-max/ghaction-upx@v3
@@ -50,16 +63,9 @@ jobs:
           install-only: true
 
       - name: Install project dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit
 
-      # One command builds frontend, compiles Rust, and bundles installers
-      - name: Build & bundle application (Tauri)
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run tauri -- build
-
-      - name: Extract metadata (product name & version)
+      - name: Extract metadata
         id: meta
         shell: pwsh
         run: |
@@ -67,30 +73,81 @@ jobs:
           "version=$($cfg.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "product=$($cfg.productName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      - name: Build & bundle application (Tauri)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_BUNDLE_IDENTIFIER: ${{ steps.meta.outputs.product }}
+        run: |
+          $env:CARGO_TERM_COLOR = "always"
+          $env:RUSTFLAGS = "-C target-cpu=native"
+          npm run tauri -- build -- --verbose
+
       - name: Compress executable with UPX
-        run: upx --best src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
+        if: ${{ steps.meta.outputs.product != '' }}
+        run: |
+          $exePath = "src-tauri/target/release/${{ steps.meta.outputs.product }}.exe"
+          if (Test-Path $exePath) {
+            upx --best --lzma $exePath
+          } else {
+            Write-Host "Executable not found at $exePath, skipping compression"
+          }
 
       - name: Generate updater artifacts
         id: updater
         shell: pwsh
         run: |
           $msiPath = "./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
-          $signature = Get-Content -Raw "$msiPath.sig"
-          $date = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
-          $json = @{
-            version = "${{ steps.meta.outputs.version }}"
-            pub_date = $date
-            platforms = @{
-              "windows-x86_64" = @{
-                signature = $signature
-                url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
-              }
-            }
-          } | ConvertTo-Json -Depth 4
+          $signaturePath = "$msiPath.sig"
           
-          Set-Content -Path "./update.json" -Value $json
+          if (Test-Path $signaturePath) {
+            $signature = Get-Content -Raw $signaturePath
+            $date = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+            $json = @{
+              version = "${{ steps.meta.outputs.version }}"
+              pub_date = $date
+              platforms = @{
+                "windows-x86_64" = @{
+                  signature = $signature
+                  url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
+                }
+              }
+            } | ConvertTo-Json -Depth 4
+            
+            Set-Content -Path "./update.json" -Value $json
+          } else {
+            Write-Host "Signature file not found, skipping updater generation"
+          }
 
-      - name: Create GitHub Release with artifacts
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          retention-days: 1
+          path: |
+            ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
+            ./src-tauri/target/release/bundle/msi/
+            ./update.json
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.ref_type == 'tag' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./artifacts
+
+      - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -100,8 +157,9 @@ jobs:
           draft: false
           prerelease: false
           artifacts: >-
-            ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe,
-            ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi,
-            ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig,
-            ./update.json
+            ./artifacts/**/*.exe,
+            ./artifacts/**/*.msi,
+            ./artifacts/**/*.sig,
+            ./artifacts/update.json
           artifactErrorsFailBuild: true
+          removeArtifacts: true
