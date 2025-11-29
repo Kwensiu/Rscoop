@@ -43,13 +43,25 @@ jobs:
         run: npm ci
 
       # One command builds frontend, compiles Rust, and bundles installers
-      # Disable signing for test builds by clearing all signing environment variables
-      - name: Build & bundle application (Tauri)
+      # Build frontend first, then build Rust with no signing
+      - name: Build frontend
+        run: npm run build
+        
+      - name: Build Rust bundle without signing
         run: |
+          cd src-tauri
+          
+          # Clear every possible signing environment variable
           $env:TAURI_PRIVATE_KEY = ""
           $env:TAURI_SIGNING_PRIVATE_KEY = ""
           $env:TAURI_KEY_PASSWORD = ""
-          npm run tauri build
+          $env:TAURI_APP_PRIVATE_KEY = ""
+          $env:CARGO_TAURI_PRIVATE_KEY = ""
+          $env:APPLE_SIGNING_IDENTITY = ""
+          $env:WINDOWS_SIGNING_CERT = ""
+          
+          # Build using cargo tauri directly
+          cargo tauri build --bundles msi --no-verify-signature
 
       - name: Extract metadata (product name & version)
         id: meta
