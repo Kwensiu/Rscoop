@@ -1,26 +1,10 @@
-import { Download, RefreshCw, Github, Star, BookOpen } from "lucide-solid";
-import { createSignal, Show, Component } from "solid-js";
-import { check } from '@tauri-apps/plugin-updater';
+import { Download, RefreshCw, Github, BookOpen } from "lucide-solid";
+import { createSignal, Show } from "solid-js";
+import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import pkgJson from "../../../../package.json";
-
-// Define the types we need
-interface UpdateEvent {
-  event: 'Started' | 'Progress' | 'Finished';
-  data: {
-    contentLength?: number;
-    chunkLength?: number;
-  };
-}
-
-interface UpdateInfo {
-  available: boolean;
-  version?: string;
-  body?: string;
-  downloadAndInstall: (callback: (event: UpdateEvent) => void) => Promise<void>;
-}
 
 export interface AboutSectionRef {
   checkForUpdates: (manual: boolean) => Promise<void>;
@@ -31,56 +15,10 @@ export interface AboutSectionProps {
   isScoopInstalled?: boolean;
 }
 
-const GitHubRepoCard: Component<{
-  repoName: string;
-  repoUrl: string;
-  message?: string;
-}> = (props) => {
-  const handleOpenUrl = async () => {
-    try {
-      await openUrl(props.repoUrl);
-    } catch (error) {
-      console.error(`Failed to open GitHub URL:`, error);
-      await message(`Could not open the URL. Please visit ${props.repoUrl} manually.`, {
-        title: "Error Opening URL",
-        kind: "error"
-      });
-    }
-  };
-
-  return (
-    <div class="flex flex-col items-center space-y-2 mt-4 p-3 bg-base-300 rounded-lg border border-base-content/10">
-      <div class="text-sm text-base-content/80 text-center">
-        {props.repoName}
-      </div>
-      <div class="flex space-x-2">
-        <button
-          class="btn btn-xs btn-outline btn-primary hover:btn-primary transition-colors"
-          onClick={handleOpenUrl}
-        >
-          <Github class="w-3 h-3 mr-1" />
-          View on GitHub
-        </button>
-        <button
-          class="btn btn-xs btn-outline btn-warning hover:btn-warning transition-colors"
-          onClick={handleOpenUrl}
-        >
-          <Star class="w-3 h-3 mr-1" />
-          Leave a Star
-        </button>
-      </div>
-      <Show when={props.message}>
-        <div class="text-xs text-base-content/60 text-center">
-          {props.message}
-        </div>
-      </Show>
-    </div>
-  );
-};
 
 export default function AboutSection(props: AboutSectionProps) {
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
-  const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | null>(null);
+  const [updateInfo, setUpdateInfo] = createSignal<Update | null>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
   const [downloadProgress, setDownloadProgress] = createSignal<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
 
@@ -149,23 +87,19 @@ export default function AboutSection(props: AboutSectionProps) {
       setDownloadProgress({ downloaded: 0, total: null });
 
       // Download and install the update with progress reporting
-      await currentUpdateInfo.downloadAndInstall((event: UpdateEvent) => {
-        switch (event.event) {
-          case 'Started':
-            setDownloadProgress({
-              downloaded: 0,
-              total: event.data.contentLength || null
-            });
-            break;
-          case 'Progress':
-            setDownloadProgress(prev => ({
-              downloaded: prev.downloaded + (event.data.chunkLength || 0),
-              total: prev.total
-            }));
-            break;
-          case 'Finished':
-            setUpdateStatus('installing');
-            break;
+      await currentUpdateInfo.downloadAndInstall((progress) => {
+        if (progress.event === 'Started') {
+          setDownloadProgress({
+            downloaded: 0,
+            total: progress.data.contentLength || null
+          });
+        } else if (progress.event === 'Progress') {
+          setDownloadProgress(prev => ({
+            downloaded: prev.downloaded + (progress.data.chunkLength || 0),
+            total: prev.total
+          }));
+        } else if (progress.event === 'Finished') {
+          setUpdateStatus('installing');
         }
       });
 
@@ -194,12 +128,19 @@ export default function AboutSection(props: AboutSectionProps) {
       {/* Hero Section */}
       <div class="bg-base-300 p-8 flex flex-col items-center text-center space-y-4">
         <div>
-          <h2 class="text-3xl font-bold tracking-tight">Rscoo-Fork</h2>
+          <h2 class="text-3xl font-bold tracking-tight">Rscoop (Fork)</h2>
           <p class="text-base-content/60 font-medium">v{pkgJson.version}</p>
         </div>
         <p class="max-w-md  leading-relaxed">
           A modern, powerful, and fast GUI for Scoop package manager on Windows.
         </p>
+        <p class="text-sm text-base-content/60 mt-2">
+          You are Using a customized version of Rscoop, maintained by Kwensiu.
+        </p>
+        <p class="text-sm text-base-content/60">
+          Please report any issues to my fork repository.
+        </p>
+
       </div>
 
       <div class="card-body p-6 space-y-8">
@@ -300,11 +241,19 @@ export default function AboutSection(props: AboutSectionProps) {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button
             class="btn btn-outline hover:bg-base-content hover:text-base-100 transition-all"
+            onClick={() => openUrl('https://github.com/Kwensiu/Rscoop/').catch(console.error)}
+          >
+            <Github class="w-5 h-5" />
+            My Fork (Kwensiu)
+          </button>
+          <button
+            class="btn btn-outline hover:bg-base-content hover:text-base-100 transition-all"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
             <Github class="w-5 h-5" />
-            GitHub
+            Upstream
           </button>
+
           <button
             class="btn btn-outline btn-info hover:text-info-content transition-all"
             onClick={() => openUrl('https://amarbego.github.io/Rscoop/').catch(console.error)}
@@ -312,18 +261,12 @@ export default function AboutSection(props: AboutSectionProps) {
             <BookOpen class="w-5 h-5" />
             Docs
           </button>
-          <button
-            class="btn btn-outline btn-warning hover:text-warning-content transition-all"
-            onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
-          >
-            <Star class="w-5 h-5" />
-            Star Project
-          </button>
+
         </div>
 
         {/* Footer */}
         <div class="text-center text-xs text-base-content/30 pt-4">
-          <p>Copyright © {new Date().getFullYear()} AmarBego. MIT License.</p>
+          <p>Copyright © {new Date().getFullYear()} AmarBego / Kwensiu. MIT License.</p>
         </div>
       </div>
     </div>
