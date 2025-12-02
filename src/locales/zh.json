@@ -1,7 +1,7 @@
 {
   "app": {
-    "buckets": "存储桶",
-    "doctor": "健康检查",
+    "buckets": "仓库",
+    "doctor": "诊断",
     "packages": "软件包",
     "search": "搜索",
     "settings": "设置",
