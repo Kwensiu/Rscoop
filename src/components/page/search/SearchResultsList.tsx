@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import { ScoopPackage } from "../../../types/scoop";
 import { Download } from "lucide-solid";
+import { t } from "../../../i18n";
 
 interface SearchResultsListProps {
     loading: boolean;
@@ -17,10 +18,10 @@ interface SearchResultsListProps {
 function SearchResultsList(props: SearchResultsListProps) {
     // 每页显示的项目数
     const ITEMS_PER_PAGE = 10;
-    
+
     // 计算总页数
     const totalPages = () => Math.ceil(props.results.length / ITEMS_PER_PAGE);
-    
+
     // 计算当前页的项目
     const paginatedResults = () => {
         const startIndex = (props.currentPage - 1) * ITEMS_PER_PAGE;
@@ -35,8 +36,10 @@ function SearchResultsList(props: SearchResultsListProps) {
             >
                 <div class="text-center py-16">
                     <p class="text-xl">
-                        No {props.activeTab === "packages" ? "packages" : "includes"} found
-                        for "{props.searchTerm}"
+                        {t("search.results.no_packages_found", {
+                            type: t(`search.tabs.${props.activeTab === "packages" ? "packages" : "includes"}`),
+                            query: props.searchTerm
+                        })}
                     </p>
                 </div>
             </Show>
@@ -53,7 +56,7 @@ function SearchResultsList(props: SearchResultsListProps) {
                                     <div class="flex-grow">
                                         <h3 class="card-title">{pkg.name}</h3>
                                         <p>
-                                            from bucket: <strong>{pkg.source}</strong>
+                                            {t("search.results.from_bucket", { bucket: pkg.source })}
                                         </p>
                                     </div>
                                     <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
@@ -96,11 +99,14 @@ function SearchResultsList(props: SearchResultsListProps) {
                     >
                         &lt;
                     </button>
-                    
+
                     <span class="text-sm">
-                        Page {props.currentPage} / {totalPages()}
+                        {t("search.results.page_info", {
+                            current: props.currentPage,
+                            total: totalPages()
+                        })}
                     </span>
-                    
+
                     <button
                         class="btn btn-sm"
                         disabled={props.currentPage >= totalPages()}

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Power } from "lucide-solid";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 export default function StartupSettings() {
     const [isAutoStartEnabled, setIsAutoStartEnabled] = createSignal(false);
@@ -38,9 +39,9 @@ export default function StartupSettings() {
 
     return (
         <Card
-            title="Startup Settings"
+            title={t("settings.startup.title")}
             icon={Power}
-            description="Configure whether Rscoop should automatically start when Windows boots."
+            description={t("settings.startup.description")}
             headerAction={
                 <SettingsToggle
                     checked={isAutoStartEnabled()}

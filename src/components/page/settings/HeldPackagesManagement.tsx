@@ -2,6 +2,7 @@ import { For, Show } from "solid-js";
 import { CirclePause, LockOpen } from "lucide-solid";
 import heldStore from "../../../stores/held";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 interface HeldPackagesManagementProps {
   onUnhold: (packageName: string) => void;
@@ -13,9 +14,9 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
 
   return (
     <Card
-      title="Held Packages Management"
+      title={t("settings.held_packages.title")}
       icon={CirclePause}
-      description="Packages on hold are prevented from being updated via Rscoop or Scoop."
+      description={t("settings.held_packages.description")}
     >
       <Show
         when={!heldPackagesStore.isLoading}
@@ -23,7 +24,7 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
       >
         <Show
           when={heldPackagesStore.packages.length > 0}
-          fallback={<p class="text-base-content/60 p-4 text-center">No packages are currently on hold.</p>}
+          fallback={<p class="text-base-content/60 p-4 text-center">{t("settings.held_packages.no_packages_held")}</p>}
         >
           <div class="max-h-60 overflow-y-auto pr-2">
             <ul class="space-y-2">
@@ -38,7 +39,7 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
                       disabled={props.operationInProgress}
                     >
                       <LockOpen class="w-4 h-4 mr-1" />
-                      Unhold
+                      {t("settings.held_packages.unhold")}
                     </button>
                   </li>
                 )}

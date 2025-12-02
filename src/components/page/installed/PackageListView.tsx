@@ -1,11 +1,12 @@
 import { For, Show, Accessor } from "solid-js";
-import { 
+import {
   Ellipsis, CircleArrowUp, Trash2, ArrowUp, ArrowDown, Lock, LockOpen, RefreshCw,
 } from 'lucide-solid';
 import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
 import heldStore from "../../../stores/held";
 import { formatIsoDate } from "../../../utils/date";
+import { t } from "../../../i18n";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
@@ -26,9 +27,9 @@ interface PackageListViewProps {
   isPackageVersioned: (packageName: string) => boolean;
 }
 
-const SortableHeader = (props: { 
-  key: SortKey, 
-  title: string, 
+const SortableHeader = (props: {
+  key: SortKey,
+  title: string,
   onSort: (key: SortKey) => void,
   sortKey: Accessor<SortKey>,
   sortDirection: Accessor<'asc' | 'desc'>
@@ -63,20 +64,20 @@ const HoldToggleButton = (props: {
               fallback={
                 <a onClick={() => props.onHold(props.pkgName)}>
                   <Lock class="w-4 h-4 mr-2" />
-                  <span>Hold Package</span>
+                  <span>{t("installed.list.hold_package")}</span>
                 </a>
               }
             >
               <a onClick={() => props.onUnhold(props.pkgName)}>
                 <LockOpen class="w-4 h-4 mr-2" />
-                <span>Unhold Package</span>
+                <span>{t("installed.list.unhold_package")}</span>
               </a>
             </Show>
           }
         >
           <a class="btn-disabled cursor-not-allowed">
             <Lock class="w-4 h-4 mr-2 text-cyan-400" />
-            <span>Cannot Unhold (Versioned)</span>
+            <span>{t("installed.list.cannot_unhold")}</span>
           </a>
         </Show>
       }
@@ -100,7 +101,7 @@ const SwitchBucketButton = (props: {
       <li>
         <a onClick={() => props.onViewInfoForVersions(props.pkg)}>
           <RefreshCw class="w-4 h-4 mr-2" />
-          Switch Version
+          {t("installed.list.switch_version")}
         </a>
       </li>
     </Show>
@@ -113,12 +114,12 @@ function PackageListView(props: PackageListViewProps) {
       <table class="table z-[10]">
         <thead>
           <tr>
-            <SortableHeader key="name" title="Name" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <SortableHeader key="version" title="Version" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <SortableHeader key="source" title="Bucket" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <SortableHeader key="updated" title="Updated" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="name" title={t("installed.list.name")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="version" title={t("installed.list.version")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="source" title={t("installed.list.bucket")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="updated" title={t("installed.list.updated")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
             <th class="text-center" style="position: sticky; right: 0; background: inherit; z-index: 2; ">
-              
+
             </th>
           </tr>
         </thead>
@@ -165,7 +166,7 @@ function PackageListView(props: PackageListViewProps) {
                     </label>
                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-52 z-[11]">
                       <li>
-                        <HoldToggleButton 
+                        <HoldToggleButton
                           pkgName={pkg.name}
                           isHeld={heldStore.isHeld(pkg.name)}
                           isVersioned={!!pkg.is_versioned_install}
@@ -183,7 +184,7 @@ function PackageListView(props: PackageListViewProps) {
                       <li>
                         <a onClick={() => props.onUninstall(pkg)}>
                           <Trash2 class="w-4 h-4 mr-2" />
-                          Uninstall
+                          {t("installed.list.uninstall")}
                         </a>
                       </li>
                     </ul>

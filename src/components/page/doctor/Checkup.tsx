@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import { CircleCheckBig, CircleX, TriangleAlert, RefreshCw, Download } from "lucide-solid";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 export interface CheckupItem {
     id: string | null;
@@ -22,14 +23,14 @@ interface CheckupProps {
 function Checkup(props: CheckupProps) {
     return (
         <Card
-            title="Scoop Health Check"
+            title={t('doctor.checkup.title')}
             icon={CircleCheckBig}
             headerAction={
                 <button class="btn btn-ghost btn-sm" onClick={props.onRerun} disabled={props.isLoading}>
                     <RefreshCw classList={{ "animate-spin": props.isLoading }} />
                 </button>
             }
-            description="This tool checks for common problems with your Scoop setup."
+            description={t('doctor.checkup.description')}
         >
             <Show when={props.isLoading}>
                 <div class="flex justify-center p-8">
@@ -63,18 +64,18 @@ function Checkup(props: CheckupProps) {
                                             <Show when={props.installingHelper === item.id} fallback={
                                                 <>
                                                     <Download class="w-3 h-3 mr-1" />
-                                                    Install
+                                                    {t('doctor.checkup.install')}
                                                 </>
                                             }>
                                                 <span class="loading loading-spinner loading-xs"></span>
-                                                Installing...
+                                                {t('doctor.checkup.installing')}
                                             </Show>
                                         </button>
                                     </Show>
                                 </div>
                                 <Show when={item.suggestion}>
                                     <div class="mt-2 ml-8 text-sm p-2 bg-base-300 rounded-md">
-                                        <p class="font-semibold mb-1">Suggestion:</p>
+                                        <p class="font-semibold mb-1">{t('doctor.checkup.suggestion')}</p>
                                         <code class="font-mono ">{item.suggestion}</code>
                                     </div>
                                 </Show>

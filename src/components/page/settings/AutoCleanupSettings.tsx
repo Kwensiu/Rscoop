@@ -3,6 +3,7 @@ import { Recycle, Sparkles } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 function AutoCleanupSettings() {
     const { settings, setCleanupSettings } = settingsStore;
@@ -18,9 +19,9 @@ function AutoCleanupSettings() {
 
     return (
         <Card
-            title="Auto Cleanup"
+            title={t("settings.auto_cleanup.title")}
             icon={Recycle}
-            description="Automatically tidy up old package versions and outdated cache assets after install, update, or uninstall operations."
+            description={t("settings.auto_cleanup.description")}
             headerAction={
                 <SettingsToggle
                     checked={settings.cleanup.autoCleanupEnabled}
@@ -38,10 +39,10 @@ function AutoCleanupSettings() {
                             <div class="flex-1">
                                 <h3 class="font-medium flex items-center text-sm">
                                     <Sparkles class="w-4 h-4 mr-2 text-primary" />
-                                    Clean Old Versions
+                                    {t("settings.auto_cleanup.clean_old_versions")}
                                 </h3>
                                 <p class="text-xs mt-1 text-base-content/60">
-                                    Keep only the most recent versions of packages. Versioned installs (using <code>@version</code>) are always preserved.
+                                    {t("settings.auto_cleanup.clean_old_versions_description")}
                                 </p>
                             </div>
                             <input
@@ -55,7 +56,7 @@ function AutoCleanupSettings() {
                         <Show when={settings.cleanup.cleanupOldVersions}>
                             <div class="mt-4">
                                 <label for="preserveVersionCount" class="block text-xs font-semibold mb-2">
-                                    Versions to Keep: <span class="text-primary">{localVersionCount()}</span>
+                                    {t("settings.auto_cleanup.versions_to_keep", { count: localVersionCount() })}
                                 </label>
                                 <input
                                     type="range"
@@ -74,9 +75,9 @@ function AutoCleanupSettings() {
                     <div class="bg-base-300/60 rounded-lg p-4 border border-base-content/50">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
-                                <h3 class="font-medium text-sm">Clean Outdated Cache</h3>
+                                <h3 class="font-medium text-sm">{t("settings.auto_cleanup.clean_outdated_cache")}</h3>
                                 <p class="text-xs mt-1 text-base-content/60">
-                                    Remove stale downloaded artifacts that are no longer needed, freeing disk space.
+                                    {t("settings.auto_cleanup.clean_outdated_cache_description")}
                                 </p>
                             </div>
                             <input

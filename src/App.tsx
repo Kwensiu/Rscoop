@@ -1,5 +1,6 @@
-import { createSignal, Show, onMount, createMemo, createEffect, onCleanup } from "solid-js";
+import { createSignal, Show, onMount, createMemo, createEffect, onCleanup, Suspense } from "solid-js";
 import "./App.css";
+import "./i18n";
 import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
 import BucketPage from "./pages/BucketPage.tsx";
@@ -23,24 +24,25 @@ import settingsStore from "./stores/settings";
 import { checkCwdMismatch } from "./utils/installCheck";
 import { BucketInfo, updateBucketsCache } from "./hooks/useBuckets";
 import { usePackageOperations } from "./hooks/usePackageOperations";
+import { t } from "./i18n";
 
 // Create a component to manage persistent page states
 function PersistentPage(props: { view: View; currentView: View; children: any }) {
-  let containerRef: HTMLDivElement | undefined;
-  
-  // Always render the page but visually hide it when not active
-  return (
-    <div 
-      ref={containerRef}
-      style={{
-        display: props.view === props.currentView ? 'block' : 'none',
-        width: '100%',
-        height: '100%'
-      }}
-    >
-      {props.children}
-    </div>
-  );
+    let containerRef: HTMLDivElement | undefined;
+
+    // Always render the page but visually hide it when not active
+    return (
+        <div
+            ref={containerRef}
+            style={{
+                display: props.view === props.currentView ? 'block' : 'none',
+                width: '100%',
+                height: '100%'
+            }}
+        >
+            {props.children}
+        </div>
+    );
 }
 
 function App() {
@@ -78,10 +80,10 @@ function App() {
 
     // Minimized state
     const [minimizedState, setMinimizedState] = createSignal({
-      isMinimized: false,
-      showIndicator: false,
-      title: "",
-      result: "in-progress" as 'success' | 'error' | 'in-progress'
+        isMinimized: false,
+        showIndicator: false,
+        title: "",
+        result: "in-progress" as 'success' | 'error' | 'in-progress'
     });
 
     const { settings } = settingsStore;
@@ -95,12 +97,10 @@ function App() {
         const handleMinimizeEvent = (event: any) => {
             setMinimizedState(event.payload);
         };
-        
         let unlisten: (() => void) | undefined;
         listen('panel-minimize-state', handleMinimizeEvent).then((unlistenFn) => {
             unlisten = unlistenFn;
         });
-        
         onCleanup(() => {
             if (unlisten) unlisten();
         });
@@ -304,7 +304,6 @@ function App() {
                             .then((buckets) => {
                                 if (buckets && buckets.length > 0) {
                                     console.log(`Preloaded ${buckets.length} buckets`);
-                                    
                                     // Also update the buckets cache in the useBuckets hook
                                     updateBucketsCache(buckets);
                                 }
@@ -356,15 +355,15 @@ function App() {
                                         d="M12 9v2m0 4v2m0 4v2M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2h-4m-6 0V3m0 0a2 2 0 012-2h0a2 2 0 012 2v0m0 0h4v4m0-4h0a2 2 0 00-2-2h0a2 2 0 00-2 2v4" />
                                 </svg>
                                 <div>
-                                    <h3 class="font-bold text-lg">MSI Launch Notice</h3>
+                                    <h3 class="font-bold text-lg">{t('msi_notice.title')}</h3>
                                     <p class="text-sm opacity-90">
-                                        Everything is okay — this isn't an error. Windows launched the app in a limited mode right after installation.
+                                        {t('msi_notice.description')}
                                     </p>
                                 </div>
                             </div>
 
                             <div class="text-sm opacity-90">
-                                <p><strong>To enable all features, please close and reopen the app</strong> from the Start Menu or Desktop shortcut.</p>
+                                <p innerHTML={t('msi_notice.instruction')}></p>
                             </div>
 
                             <div class="flex justify-end gap-2">
@@ -372,27 +371,27 @@ function App() {
                                     console.log("Proceed Anyway clicked");
                                     setBypassCwdMismatch(true);
                                 }}>
-                                    Proceed Anyway
+                                    {t('msi_notice.proceed_anyway')}
                                 </button>
                                 <button class="btn btn-sm btn-outline btn-info" onClick={handleCloseApp}>
-                                    Close App Now
+                                    {t('msi_notice.close_app')}
                                 </button>
                             </div>
 
                             <details class="mt-2 text-sm opacity-80">
                                 <summary class="cursor-pointer hover:underline">
-                                    More details (for advanced users)
+                                    {t('msi_notice.more_details')}
                                 </summary>
-                                <p class="mt-2">When launched directly from an MSI installer, Windows runs the process in a restricted execution context. This causes:</p>
+                                <p class="mt-2">{t('msi_notice.details_description')}</p>
                                 <ul class="list-disc list-inside mt-1">
-                                    <li>Current working directory (CWD) mismatch</li>
-                                    <li>Limited folder and ACL permissions</li>
-                                    <li>Symlinks may resolve incorrectly</li>
-                                    <li>Process inherits MSI security token limitations</li>
+                                    <li>{t('msi_notice.details_point1')}</li>
+                                    <li>{t('msi_notice.details_point2')}</li>
+                                    <li>{t('msi_notice.details_point3')}</li>
+                                    <li>{t('msi_notice.details_point4')}</li>
                                 </ul>
-                                <p class="mt-2">This prevents normal initialization. Relaunching outside MSI context fixes this.</p>
+                                <p class="mt-2">{t('msi_notice.details_solution')}</p>
                                 <p class="mt-3 opacity-70">
-                                    Have a workaround? <a href="https://github.com/amarbego/rscoop" target="_blank" class="link underline">Open a PR</a>.
+                                    {t('msi_notice.workaround')} <a href="https://github.com/amarbego/rscoop" target="_blank" class="link underline">Open a PR</a>.
                                 </p>
                             </details>
                         </div>
@@ -422,13 +421,13 @@ function App() {
 
             <Show when={!isReady() && !error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
-                    <h1 class="text-2xl font-bold mb-4">Rscoop</h1>
-                    <p>Getting things ready...</p>
+                    <h1 class="text-2xl font-bold mb-4">{t('app.title')}</h1>
+                    <p>{t('messages.loading')}</p>
                     <span class="loading loading-spinner loading-lg mt-4"></span>
                     <Show when={initTimedOut()}>
                         <div class="mt-4 text-warning text-center max-w-md">
-                            <p>Initialization is taking longer than expected.</p>
-                            <p class="text-sm mt-2">This might be due to a slow system or Scoop configuration issue.</p>
+                            <p>{t('messages.init_timeout')}</p>
+                            <p class="text-sm mt-2">{t('messages.init_timeout_reason')}</p>
                         </div>
                     </Show>
                 </div>
@@ -436,11 +435,11 @@ function App() {
 
             <Show when={error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
-                    <h1 class="text-2xl font-bold text-error mb-4">Error</h1>
+                    <h1 class="text-2xl font-bold text-error mb-4">{t('status.error')}</h1>
                     <p>{error()}</p>
                     <Show when={initTimedOut()}>
                         <div class="mt-4 text-center max-w-md">
-                            <p class="text-sm">Initialization timed out. Showing interface anyway...</p>
+                            <p class="text-sm">{t('messages.init_timeout_show')}</p>
                         </div>
                     </Show>
                 </div>
@@ -451,7 +450,7 @@ function App() {
                     <input id="my-drawer" type="checkbox" class="drawer-toggle" />
                     <div class="drawer-content flex flex-col h-screen">
                         <Header currentView={view()} onNavigate={setView} />
-                        <main class="flex-1 p-6 overflow-y-auto overflow-x-hidden">
+                        <main class="flex-1 p-6 overflow-y-auto overflow-x-hidden z-1">
                             <PersistentPage view="search" currentView={view()}>
                                 <SearchPage />
                             </PersistentPage>
@@ -462,10 +461,10 @@ function App() {
                                 <InstalledPage onNavigate={setView} />
                             </PersistentPage>
                             <PersistentPage view="settings" currentView={view()}>
-                                <SettingsPage 
-                                    activeSection="" 
-                                    onSectionChange={() => {}} 
-                                    isScoopInstalled={isScoopInstalled()} 
+                                <SettingsPage
+                                    activeSection=""
+                                    onSectionChange={() => { }}
+                                    isScoopInstalled={isScoopInstalled()}
                                 />
                             </PersistentPage>
                             <PersistentPage view="doctor" currentView={view()}>
@@ -500,8 +499,8 @@ function App() {
                 </div>
                 {/* Update ALL floating button in the bottom-right corner */}
                 <AnimatedButton
-                  onClick={handleUpdateAll}
-                  initialState="circle"
+                    onClick={handleUpdateAll}
+                    initialState="circle"
                 />
                 <DebugModal />
                 <OperationModal
@@ -511,7 +510,7 @@ function App() {
                     isScan={packageOperations.isScanning()}
                     onInstallConfirm={packageOperations.handleInstallConfirm}
                 />
-                <MinimizedIndicator 
+                <MinimizedIndicator
                     title={minimizedState().title}
                     visible={minimizedState().showIndicator}
                     onClick={handleMinimizedIndicatorClick}

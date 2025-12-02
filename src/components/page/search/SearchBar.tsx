@@ -1,5 +1,6 @@
 import { Accessor, Setter, Show } from "solid-js";
 import { CircleQuestionMark, Search, X, LoaderCircle } from "lucide-solid";
+import { t } from "../../../i18n";
 
 interface SearchBarProps {
     searchTerm: Accessor<string>;
@@ -18,7 +19,7 @@ function SearchBar(props: SearchBarProps) {
 
             <input
                 type="text"
-                placeholder="Search for apps from local Buckets"
+                placeholder={t("search.bar.placeholder")}
                 class="input bg-base-400 input-bordered w-full pl-10 pr-16 relative"
                 value={props.searchTerm()}
                 onInput={(e) => props.setSearchTerm(e.currentTarget.value)}
@@ -28,7 +29,7 @@ function SearchBar(props: SearchBarProps) {
                     <button
                         onClick={() => props.setSearchTerm("")}
                         class="p-1 mr-1 rounded-full text-gray-500 hover:text-base-700 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none"
-                        aria-label="Clear search"
+                        aria-label={t("search.bar.clear_search")}
                         disabled={props.loading?.()}
                     >
                         <X class="h-5 w-5" />
@@ -36,7 +37,7 @@ function SearchBar(props: SearchBarProps) {
                 </Show>
                 <span
                     class="tooltip tooltip-left"
-                    data-tip={'Wrap with "quotes" for exact match'}
+                    data-tip={t("search.bar.exact_match_tooltip")}
                 >
                     <CircleQuestionMark size={16} class="text-gray-400" />
                 </span>

@@ -1,9 +1,10 @@
 import { For, Show, Accessor } from "solid-js";
-import { MoreHorizontal, ArrowUpCircle, Trash2, Lock, Unlock, RefreshCw, ArrowLeftRight} from 'lucide-solid';
+import { MoreHorizontal, ArrowUpCircle, Trash2, Lock, Unlock, RefreshCw, ArrowLeftRight } from 'lucide-solid';
 import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
 import heldStore from "../../../stores/held";
 import { formatIsoDate } from "../../../utils/date";
+import { t } from "../../../i18n";
 
 interface PackageGridViewProps {
   packages: Accessor<DisplayPackage[]>;
@@ -34,7 +35,7 @@ const PackageCard = (props: {
   isPackageVersioned: (packageName: string) => boolean;
 }) => {
   const { pkg } = props;
-  
+
   return (
     <div class="card bg-base-300 shadow-xl transition-all transform hover:scale-101 hover:bg-base-400 z-0 focus-within:z-20" data-no-close-search>
       <div class="card-body">
@@ -47,65 +48,65 @@ const PackageCard = (props: {
                 </div>
               </button>
               <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                  <div class="tooltip" data-tip={`Update available: ${pkg.available_version}`}>
-                    <ArrowUpCircle class="w-4 h-4 text-primary cursor-pointer transition-transform hover:scale-125 mr-1" onClick={() => props.onUpdate(pkg)} />
-                  </div>
+                <div class="tooltip" data-tip={t("installed.list.update_available_tooltip", { version: pkg.available_version })}>
+                  <ArrowUpCircle class="w-4 h-4 text-primary cursor-pointer transition-transform hover:scale-125 mr-1" onClick={() => props.onUpdate(pkg)} />
+                </div>
               </Show>
               <Show when={pkg.is_versioned_install}>
-                  <div class="tooltip" data-tip="Versioned install - cannot be updated">
-                    <Lock class="w-4 h-4 text-cyan-400" />
-                  </div>
+                <div class="tooltip" data-tip={t("installed.list.versioned_tooltip")}>
+                  <Lock class="w-4 h-4 text-cyan-400" />
+                </div>
               </Show>
               <Show when={heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                   <div class="tooltip" data-tip="This package is on hold">
-                     <Lock class="w-4 h-4 text-warning" />
-                   </div>
-                </Show>
+                <div class="tooltip" data-tip={t("installed.list.held_tooltip")}>
+                  <Lock class="w-4 h-4 text-warning" />
+                </div>
+              </Show>
             </h2>
           </div>
           <div class="dropdown dropdown-end flex-shrink-0">
-              <label tabindex="0" class="btn btn-ghost btn-xs btn-circle bg-base-400">
-                <MoreHorizontal class="w-4 h-4" />
-              </label>
-              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-44 z-[1]">
-                <li>
-                  <HoldToggleButton 
-                    pkgName={pkg.name}
-                    isHeld={heldStore.isHeld(pkg.name)}
-                    isVersioned={pkg.is_versioned_install ?? false}
-                    operatingOn={props.operatingOn}
-                    onHold={props.onHold}
-                    onUnhold={props.onUnhold}
-                  />
-                </li>
-                <SwitchVersionButton
+            <label tabindex="0" class="btn btn-ghost btn-xs btn-circle bg-base-400">
+              <MoreHorizontal class="w-4 h-4" />
+            </label>
+            <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-44 z-[1]">
+              <li>
+                <HoldToggleButton
                   pkgName={pkg.name}
-                  isPackageVersioned={props.isPackageVersioned}
-                  onViewInfoForVersions={props.onViewInfoForVersions}
-                  pkg={pkg}
+                  isHeld={heldStore.isHeld(pkg.name)}
+                  isVersioned={pkg.is_versioned_install ?? false}
+                  operatingOn={props.operatingOn}
+                  onHold={props.onHold}
+                  onUnhold={props.onUnhold}
                 />
-                <li>
-                  <a onClick={() => props.onChangeBucket(pkg)}>
-                    <ArrowLeftRight class="w-4 h-4 mr-2" />
-                    Change Bucket
-                  </a>
-                </li>
-                <li>
-                  <a class="text-error" onClick={() => props.onUninstall(pkg)}>
-                    <Trash2 class="w-4 h-4 mr-2" />
-                    Uninstall
-                  </a>
-                </li>
-              </ul>
-            </div>
+              </li>
+              <SwitchVersionButton
+                pkgName={pkg.name}
+                isPackageVersioned={props.isPackageVersioned}
+                onViewInfoForVersions={props.onViewInfoForVersions}
+                pkg={pkg}
+              />
+              <li>
+                <a onClick={() => props.onChangeBucket(pkg)}>
+                  <ArrowLeftRight class="w-4 h-4 mr-2" />
+                  {t("installed.list.change_bucket")}
+                </a>
+              </li>
+              <li>
+                <a class="text-error" onClick={() => props.onUninstall(pkg)}>
+                  <Trash2 class="w-4 h-4 mr-2" />
+                  {t("installed.list.uninstall")}
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
         <p class="text-sm text-base-content/70">
-          Version {pkg.version}
+          {t("installed.grid.version")} {pkg.version}
         </p>
         <p class="text-xs text-base-content/70">
-          Bucket {pkg.source}
+          {t("installed.grid.bucket")} {pkg.source}
         </p>
-        <p class="text-xs text-base-content/50" title={pkg.updated}>Updated on {formatIsoDate(pkg.updated)}</p>
+        <p class="text-xs text-base-content/50" title={pkg.updated}>{t("installed.grid.updated_on")} {formatIsoDate(pkg.updated)}</p>
       </div>
     </div>
   );
@@ -129,20 +130,20 @@ const HoldToggleButton = (props: {
               fallback={
                 <a onClick={() => props.onHold(props.pkgName)}>
                   <Lock class="w-4 h-4 mr-2" />
-                  <span>Hold Package</span>
+                  <span>{t("installed.list.hold_package")}</span>
                 </a>
               }
             >
               <a onClick={() => props.onUnhold(props.pkgName)}>
                 <Unlock class="w-4 h-4 mr-2" />
-                <span>Unhold Package</span>
+                <span>{t("installed.list.unhold_package")}</span>
               </a>
             </Show>
           }
         >
           <a class="btn-disabled cursor-not-allowed">
             <Lock class="w-4 h-4 mr-2 text-cyan-400" />
-            <span>Cannot Unhold (Versioned)</span>
+            <span>{t("installed.list.cannot_unhold")}</span>
           </a>
         </Show>
       }
@@ -166,7 +167,7 @@ const SwitchVersionButton = (props: {
       <li>
         <a onClick={() => props.onViewInfoForVersions(props.pkg)}>
           <RefreshCw class="w-4 h-4 mr-2" />
-          Switch Version
+          {t("installed.list.switch_version")}
         </a>
       </li>
     </Show>

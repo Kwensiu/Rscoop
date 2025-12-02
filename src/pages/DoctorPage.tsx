@@ -6,10 +6,11 @@ import Cleanup from "../components/page/doctor/Cleanup";
 import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
 import ScoopInfo from "../components/page/doctor/ScoopInfo";
-import ScoopProxySettings from "../components/page/settings/ScoopProxySettings";
+import ScoopProxySettings from "../components/page/doctor/ScoopProxySettings";
 import CommandInputField from "../components/page/doctor/CommandInputField";
 import OperationModal from "../components/OperationModal";
 import installedPackagesStore from "../stores/installedPackagesStore";
+import { t } from "../i18n";
 
 const CACHE_DIR = "cache";
 const SHIMS_DIR = "shims";
@@ -29,7 +30,7 @@ function DoctorPage() {
     const runCheckup = async (isRetry = false) => {
         const operationId = 'checkup';
         setActiveOperations(prev => new Set(prev).add(operationId));
-        
+
         if (isRetry) {
             setIsRetrying(true);
         } else {
@@ -96,7 +97,7 @@ function DoctorPage() {
         if (activeOperations().has(operationId)) {
             return;
         }
-        
+
         setActiveOperations(prev => new Set(prev).add(operationId));
         setOperationTitle(title);
         command.then(() => {
@@ -131,14 +132,14 @@ function DoctorPage() {
             "cleanup-cache"
         );
     };
-    
+
     const handleCloseOperationModal = (wasSuccess: boolean) => {
         setOperationTitle(null);
         if (wasSuccess) {
             runCheckup();
         }
     };
-    
+
     const getScoopSubPath = (subPath: string) => {
         return async () => {
             try {
@@ -151,7 +152,7 @@ function DoctorPage() {
             }
         };
     };
-    
+
     const handleOpenCacheDirectory = async () => {
         try {
             const getPath = getScoopSubPath(CACHE_DIR);
@@ -162,7 +163,7 @@ function DoctorPage() {
             console.error("Failed to open cache directory:", err);
         }
     };
-    
+
     const handleOpenShimDirectory = async () => {
         try {
             const getPath = getScoopSubPath(SHIMS_DIR);
@@ -173,7 +174,7 @@ function DoctorPage() {
             console.error("Failed to open shim directory:", err);
         }
     };
-    
+
     const handleOpenScoopDirectory = async () => {
         try {
             const scoopPath = await invoke<string | null>("get_scoop_path");
@@ -187,11 +188,11 @@ function DoctorPage() {
             console.error("Failed to open Scoop directory:", err);
         }
     };
-    
+
     onCleanup(() => {
         setActiveOperations(new Set<string>());
     });
-    
+
     const checkupComponent = (
         <Checkup
             checkupResult={checkupResult()}
@@ -204,42 +205,42 @@ function DoctorPage() {
         />
     );
 
-  return (
-    <>
-      <div class="p-6">
-        <h1 class="text-3xl font-bold mb-6">Scoop Doctor</h1>
-        
-        <div class="space-y-8">
-          <ScoopInfo onOpenDirectory={handleOpenScoopDirectory} />
-          <CommandInputField />
-          <ScoopProxySettings />
-          
-          <Show when={needsAttention()}>
-            {checkupComponent}
-          </Show>
-          
-          <Cleanup 
-            onCleanupApps={handleCleanupApps}
-            onCleanupCache={handleCleanupCache}
-          />
-          <CacheManager 
-            onOpenDirectory={handleOpenCacheDirectory}
-            onCleanupApps={handleCleanupApps}
-            onCleanupCache={handleCleanupCache}
-          />
-          <ShimManager onOpenDirectory={handleOpenShimDirectory} />
+    return (
+        <>
+            <div class="p-6">
+                <h1 class="text-3xl font-bold mb-6">{t("doctor.title")}</h1>
 
-          <Show when={!needsAttention() && (isCheckupLoading() || checkupResult().length > 0 || checkupError())}>
-               {checkupComponent}
-          </Show>
-        </div>
-      </div>
-      <OperationModal
-        title={operationTitle()}
-        onClose={handleCloseOperationModal}
-      />
-    </>
-  );
+                <div class="space-y-8">
+                    <ScoopInfo onOpenDirectory={handleOpenScoopDirectory} />
+                    <CommandInputField />
+                    <ScoopProxySettings />
+
+                    <Show when={needsAttention()}>
+                        {checkupComponent}
+                    </Show>
+
+                    <Cleanup
+                        onCleanupApps={handleCleanupApps}
+                        onCleanupCache={handleCleanupCache}
+                    />
+                    <CacheManager
+                        onOpenDirectory={handleOpenCacheDirectory}
+                        onCleanupApps={handleCleanupApps}
+                        onCleanupCache={handleCleanupCache}
+                    />
+                    <ShimManager onOpenDirectory={handleOpenShimDirectory} />
+
+                    <Show when={!needsAttention() && (isCheckupLoading() || checkupResult().length > 0 || checkupError())}>
+                        {checkupComponent}
+                    </Show>
+                </div>
+            </div>
+            <OperationModal
+                title={operationTitle()}
+                onClose={handleCloseOperationModal}
+            />
+        </>
+    );
 }
 
 export default DoctorPage;

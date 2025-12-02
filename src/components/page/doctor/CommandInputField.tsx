@@ -4,10 +4,11 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { stripAnsi } from "../../../utils/ansiUtils";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 interface OperationOutput {
-  line: string;
-  source: string;
+    line: string;
+    source: string;
 }
 
 function CommandInputField() {
@@ -28,13 +29,13 @@ function CommandInputField() {
 
     const handleRunCommand = async () => {
         if (!command().trim() || isRunning()) return;
-        
+
         try {
             const fullCommand = useScoopPrefix() ? `scoop ${command()}` : command();
-            
+
             setOutput(prev => [...prev, { line: `> ${fullCommand}`, source: 'command' }]);
             setIsRunning(true);
-            
+
             const unlisten: UnlistenFn = await listen('operation-output', (event: any) => {
                 const cleanLine = {
                     line: stripAnsi(event.payload.line),
@@ -42,14 +43,14 @@ function CommandInputField() {
                 };
                 setOutput(prev => [...prev, cleanLine]);
             });
-            
+
             const unlistenFinished: UnlistenFn = await listen('operation-finished', (event: any) => {
                 unlisten();
                 unlistenFinished();
                 setIsRunning(false);
                 setOutput(prev => [...prev, { line: stripAnsi(event.payload.message), source: event.payload.success ? 'success' : 'error' }]);
             });
-            
+
             if (useScoopPrefix()) {
                 await invoke("run_scoop_command", { command: command() });
             } else {
@@ -78,100 +79,99 @@ function CommandInputField() {
 
     return (
         <Card
-            title="Scoop Commands"
+            title={t('doctor.command_input.title')}
             icon={Terminal}
-            description="Execute Scoop commands directly from here."
-            additionalContent="　　↓　Click here to switch input mode."
+            // description={t('doctor.command_input.description')}
+            additionalContent={t('doctor.command_input.switch_input_mode')}
         >
-                <div class="form-control">
-                    <div class="join w-full">
-                        <span 
-                            class={`btn join-item transition-all duration-300 cursor-pointer ${
-                                useScoopPrefix() 
-                                    ? 'btn-success' 
-                                    : 'bg-gray-500 text-gray-300 hover:bg-gray-600'
+            <div class="form-control">
+                <div class="join w-full">
+                    <span
+                        class={`btn join-item transition-all duration-300 cursor-pointer ${useScoopPrefix()
+                                ? 'btn-success'
+                                : 'bg-gray-500 text-gray-300 hover:bg-gray-600'
                             }`}
-                            onClick={toggleScoopPrefix}
-                            style={{
-                                "text-decoration": useScoopPrefix() ? "none" : "line-through"
-                            }}
-                            title={useScoopPrefix() ? "Scoop prefix enabled (click to disable)" : "Scoop prefix disabled (click to enable)"}
-                        >
-                            scoop
-                        </span>
-                        <input 
-                            type="text" 
-                            placeholder={useScoopPrefix() ? "Enter command (e.g. 'install git')" : "Enter full command (e.g. 'scoop install git')"} 
-                            class="input input-bordered join-item flex-1" 
-                            value={command()}
-                            onInput={(e) => setCommand(e.currentTarget.value)}
-                            onKeyPress={handleKeyPress}
-                            disabled={isRunning()}
-                        />
-                        <button class="btn btn-primary join-item" onClick={handleRunCommand} disabled={isRunning()}>
-                            {isRunning() ? (
-                                <>
-                                    <span class="loading loading-spinner loading-xs"></span>
-                                    Running...
-                                </>
-                            ) : (
-                                <>
-                                    <Terminal class="w-4 h-4" />
-                                    Run
-                                </>
-                            )}
-                        </button>
-                    </div>
+                        onClick={toggleScoopPrefix}
+                        style={{
+                            "text-decoration": useScoopPrefix() ? "none" : "line-through"
+                        }}
+                        title={useScoopPrefix() ? t('doctor.command_input.scoop_prefix_enabled') : t('doctor.command_input.scoop_prefix_disabled')}
+                    >
+                        scoop
+                    </span>
+                    <input
+                        type="text"
+                        placeholder={useScoopPrefix() ? t('doctor.command_input.enter_command') : t('doctor.command_input.enter_full_command')}
+                        class="input input-bordered join-item flex-1"
+                        value={command()}
+                        onInput={(e) => setCommand(e.currentTarget.value)}
+                        onKeyPress={handleKeyPress}
+                        disabled={isRunning()}
+                    />
+                    <button class="btn btn-primary join-item" onClick={handleRunCommand} disabled={isRunning()}>
+                        {isRunning() ? (
+                            <>
+                                <span class="loading loading-spinner loading-xs"></span>
+                                {t('doctor.command_input.running')}
+                            </>
+                        ) : (
+                            <>
+                                <Terminal class="w-4 h-4" />
+                                {t('doctor.command_input.run')}
+                            </>
+                        )}
+                    </button>
                 </div>
-                
-                {/* 终端模拟显示框 */}
-                <div class="mt-4">
-                    <div ref={el => scrollRef = el} class="bg-black rounded-lg p-3 font-mono text-sm max-h-60 overflow-y-auto">
-                        <For each={output()}>
-                            {(line) => (
-                                <div class={
-                                    line.source === 'stderr' || line.source === 'error' ? 'text-red-500' : 
-                                    line.source === 'command' ? 'text-blue-400' : 
-                                    line.source === 'success' ? 'text-green-500' : 
-                                    'text-white'
-                                }>
-                                    {stripAnsi(line.line)}
-                                </div>
-                            )}
-                        </For>
-                        {output().length === 0 && !isRunning() && (
-                            <div class="text-gray-500">
-                                Waiting for Commands input...
+            </div>
+
+            {/* 终端模拟显示框 */}
+            <div class="mt-4">
+                <div ref={el => scrollRef = el} class="bg-black rounded-lg p-3 font-mono text-sm max-h-60 overflow-y-auto">
+                    <For each={output()}>
+                        {(line) => (
+                            <div class={
+                                line.source === 'stderr' || line.source === 'error' ? 'text-red-500' :
+                                    line.source === 'command' ? 'text-blue-400' :
+                                        line.source === 'success' ? 'text-green-500' :
+                                            'text-white'
+                            }>
+                                {stripAnsi(line.line)}
                             </div>
                         )}
-                        {isRunning() && (
-                            <div class="flex items-center text-white">
-                                <span class="loading loading-spinner loading-xs mr-2"></span>
-                                Executing command...
-                            </div>
-                        )}
-                        {/* 占位元素，用于确保滚动到底部 */}
-                        <div />
-                    </div>
-                    <div class="mt-2 flex justify-end">
-                        <button class="btn btn-xs btn-ghost" onClick={handleClearOutput}>Clear Output</button>
-                    </div>
+                    </For>
+                    {output().length === 0 && !isRunning() && (
+                        <div class="text-gray-500">
+                            {t('doctor.command_input.waiting_for_commands')}
+                        </div>
+                    )}
+                    {isRunning() && (
+                        <div class="flex items-center text-white">
+                            <span class="loading loading-spinner loading-xs mr-2"></span>
+                            {t('doctor.command_input.executing_command')}
+                        </div>
+                    )}
+                    {/* 占位元素，用于确保滚动到底部 */}
+                    <div />
                 </div>
-                
-                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                    <div class="bg-info/10 p-2 rounded">
-                        <p><strong>Package Management:</strong> install, uninstall, update, info</p>
-                    </div>
-                    <div class="bg-info/10 p-2 rounded">
-                        <p><strong>Information:</strong> list, status, checkup</p>
-                    </div>
-                    <div class="bg-info/10 p-2 rounded">
-                        <p><strong>Search:</strong> search, show, cat</p>
-                    </div>
-                    <div class="bg-info/10 p-2 rounded">
-                        <p><strong>Maintenance:</strong> cleanup, cache, reset</p>
-                    </div>
+                <div class="mt-2 flex justify-end">
+                    <button class="btn btn-xs btn-ghost" onClick={handleClearOutput}>{t('doctor.command_input.clear_output')}</button>
                 </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                <div class="bg-info/10 p-2 rounded">
+                    <p><strong>{t('doctor.command_input.package_management')}:</strong> install, uninstall, update, info</p>
+                </div>
+                <div class="bg-info/10 p-2 rounded">
+                    <p><strong>{t('doctor.command_input.information')}:</strong> list, status, checkup</p>
+                </div>
+                <div class="bg-info/10 p-2 rounded">
+                    <p><strong>{t('doctor.command_input.search')}:</strong> search, show, cat</p>
+                </div>
+                <div class="bg-info/10 p-2 rounded">
+                    <p><strong>{t('doctor.command_input.maintenance')}:</strong> cleanup, cache, reset</p>
+                </div>
+            </div>
         </Card>
     );
 }

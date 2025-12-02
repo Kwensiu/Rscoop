@@ -2,6 +2,7 @@ import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } fr
 import {
   Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, RefreshCw
 } from 'lucide-solid';
+import { t } from "../../../i18n";
 
 interface InstalledHeaderProps {
   updatableCount: Accessor<number>;
@@ -26,6 +27,7 @@ interface InstalledHeaderProps {
 }
 
 function InstalledPageHeader(props: InstalledHeaderProps) {
+
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
   let searchContainerRef: HTMLDivElement | undefined;
   let searchInputRef: HTMLInputElement | undefined;
@@ -70,7 +72,7 @@ function InstalledPageHeader(props: InstalledHeaderProps) {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search by name..."
+                placeholder={t("installed.header.search_placeholder")}
                 class="input input-bordered w-full join-item bg-base-200"
                 value={props.searchQuery()}
                 onInput={(e) => props.setSearchQuery(e.currentTarget.value)}
@@ -85,18 +87,18 @@ function InstalledPageHeader(props: InstalledHeaderProps) {
           </div>
         }
       >
-        <h2 class="text-3xl font-bold tracking-tight">Packages</h2>
+        <h2 class="text-3xl font-bold tracking-tight">{t("installed.header.title")}</h2>
         <div class="flex items-center gap-2">
           {/* Refresh Button */}
           <button
             class="btn btn-ghost btn-circle tooltip tooltip-bottom"
-            data-tip="Refresh"
+            data-tip={t("installed.header.refresh")}
             onClick={props.onRefresh}
           >
             <RefreshCw class="w-5 h-5" />
           </button>
           {/* Search Button */}
-          <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip="Search" onClick={() => setIsSearchOpen(true)}>
+          <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip={t("installed.header.search")} onClick={() => setIsSearchOpen(true)}>
             <Search class="w-5 h-5" />
           </button>
 
@@ -105,7 +107,7 @@ function InstalledPageHeader(props: InstalledHeaderProps) {
             fallback={
               <button
                 class="btn btn-ghost btn-circle tooltip tooltip-bottom"
-                data-tip="Check Status"
+                data-tip={t("installed.header.check_status")}
                 onClick={props.onCheckStatus}
                 disabled={props.statusLoading?.()}
               >
@@ -125,14 +127,14 @@ function InstalledPageHeader(props: InstalledHeaderProps) {
           >
             <button class="btn btn-secondary gap-2" onClick={props.onUpdateAll}>
               <CircleArrowUp class="w-4 h-4" />
-              <span class="hidden md:inline">Update All&nbsp;</span>
+              <span class="hidden md:inline">{t("installed.header.update_all")}&nbsp;</span>
               <span>({props.updatableCount()})</span>
             </button>
           </Show>
 
           {/* Filters Dropdown */}
           <div class="dropdown dropdown-end">
-            <label tabindex="0" class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" data-tip="Filter">
+            <label tabindex="0" class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" data-tip={t("installed.header.filter")}>
               <Funnel class="w-4 h-4" />
             </label>
             <div tabindex="0" class="dropdown-content menu p-4 shadow bg-base-300 rounded-box w-64 z-[1]">
@@ -158,7 +160,7 @@ function InstalledPageHeader(props: InstalledHeaderProps) {
           {/* View Toggle Button */}
           <button
             class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50"
-            data-tip={props.viewMode() === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
+            data-tip={props.viewMode() === 'grid' ? t("installed.header.switch_to_list_view") : t("installed.header.switch_to_grid_view")}
             onClick={toggleViewMode}
           >
             <Show when={props.viewMode() === 'grid'}>

@@ -4,6 +4,7 @@ import { Trash2, Archive, RefreshCw, TriangleAlert, Inbox, Folder, Database } fr
 import { formatBytes } from "../../../utils/format";
 import ConfirmationModal from "../../ConfirmationModal";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 interface CacheEntry {
     name: string;
@@ -115,14 +116,14 @@ function CacheManager(props: CacheManagerProps) {
         )).sort();
 
         setConfirmationDetails({
-            title: "Confirm Deletion",
+            title: t('doctor.cache_manager.confirm_deletion'),
             content: (
                 <>
-                    <p>You are about to delete {selectedFiles.length} cached file(s) for the following {packageNames.length} package(s):</p>
+                    <p>{t('doctor.cache_manager.delete_files', { count: selectedFiles.length, packageCount: packageNames.length })}</p>
                     <ul class="list-disc list-inside bg-base-100 p-2 rounded-md max-h-40 overflow-y-auto">
                         <For each={packageNames}>{(name) => <li>{name}</li>}</For>
                     </ul>
-                    <p>This action cannot be undone.</p>
+                    <p>{t('doctor.cache_manager.action_cannot_be_undone')}</p>
                 </>
             ),
             onConfirm: async () => {
@@ -143,8 +144,8 @@ function CacheManager(props: CacheManagerProps) {
 
     const handleClearAll = () => {
         setConfirmationDetails({
-            title: "Confirm Deletion",
-            content: <p>Are you sure you want to delete all {cacheContents().length} cached files? This action cannot be undone.</p>,
+            title: t('doctor.cache_manager.confirm_deletion'),
+            content: <p>{t('doctor.cache_manager.delete_all', { count: cacheContents().length })}</p>,
             onConfirm: async () => {
                 setIsLoading(true);
                 try {
@@ -165,7 +166,7 @@ function CacheManager(props: CacheManagerProps) {
     return (
         <>
             <Card
-                title="Cache Manager"
+                title={t('doctor.cache_manager.title')}
                 icon={Database}
                 headerAction={
                     <div class="flex items-center gap-2">
@@ -176,7 +177,7 @@ function CacheManager(props: CacheManagerProps) {
                                 disabled={selectedItems().size === 0 || isLoading()}
                             >
                                 <Trash2 class="w-4 h-4" />
-                                Selected ({selectedItems().size})
+                                {t('doctor.cache_manager.selected')} ({selectedItems().size})
                             </button>
                             <button
                                 class="btn btn-error btn-sm"
@@ -184,7 +185,7 @@ function CacheManager(props: CacheManagerProps) {
                                 disabled={isLoading()}
                             >
                                 <Archive class="w-4 h-4" />
-                                Remove All
+                                {t('doctor.cache_manager.remove_all')}
                             </button>
                             <div class="divider divider-horizontal m-1" />
                         </Show>
@@ -192,7 +193,7 @@ function CacheManager(props: CacheManagerProps) {
                             <button
                                 class="btn btn-ghost btn-sm"
                                 onClick={props.onOpenDirectory}
-                                title="Open Cache Directory"
+                                title={t('doctor.cache_manager.open_cache_directory')}
                             >
                                 <Folder class="w-5 h-5" />
                             </button>
@@ -209,7 +210,7 @@ function CacheManager(props: CacheManagerProps) {
             >
                 <input
                     type="text"
-                    placeholder="Filter by name or version..."
+                    placeholder={t('doctor.cache_manager.filter_placeholder')}
                     class="input input-bordered w-full mt-2 mb-4"
                     value={filter()}
                     onInput={(e) => setFilter(e.currentTarget.value)}
@@ -227,8 +228,8 @@ function CacheManager(props: CacheManagerProps) {
                     <Show when={!isLoading() && cacheContents().length === 0 && !error()}>
                         <div class="text-center p-8">
                             <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
-                            <p class="mt-4 text-lg font-semibold">Cache is Empty</p>
-                            <p class="text-base-content/60">There are no cached package files to manage.</p>
+                            <p class="mt-4 text-lg font-semibold">{t('doctor.cache_manager.cache_is_empty')}</p>
+                            <p class="text-base-content/60">{t('doctor.cache_manager.no_cached_files')}</p>
                         </div>
                     </Show>
 
@@ -247,9 +248,9 @@ function CacheManager(props: CacheManagerProps) {
                                                 />
                                             </label>
                                         </th>
-                                        <th>Name</th>
-                                        <th>Version</th>
-                                        <th>Size</th>
+                                        <th>{t('doctor.cache_manager.name')}</th>
+                                        <th>{t('doctor.cache_manager.version')}</th>
+                                        <th>{t('doctor.cache_manager.size')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -285,7 +286,7 @@ function CacheManager(props: CacheManagerProps) {
             <ConfirmationModal
                 isOpen={isConfirmModalOpen()}
                 title={confirmationDetails().title}
-                confirmText="Delete"
+                confirmText={t('doctor.cache_manager.delete')}
                 onConfirm={() => {
                     confirmationDetails().onConfirm();
                     setIsConfirmModalOpen(false);

@@ -7,6 +7,7 @@ import { X, ShieldAlert, TriangleAlert, ExternalLink, Minimize2 } from "lucide-s
 import { isErrorLine } from "../utils/errorDetection";
 import { stripAnsi } from "../utils/ansiUtils";
 import MinimizedIndicator from "./MinimizedIndicator";
+import { t } from "../i18n";
 
 // Shared types for backend operations
 interface OperationOutput {
@@ -246,14 +247,14 @@ function OperationModal(props: OperationModalProps) {
 
   const getCloseButtonText = () => {
     if (scanWarning()) {
-      return "Cancel";
+      return t('buttons.cancel');
     }
 
     if (result()) {
-      return "Close";
+      return t('buttons.close');
     }
 
-    return "Cancel";
+    return t('buttons.cancel');
   };
 
   const handleMinimize = () => {
@@ -273,7 +274,7 @@ function OperationModal(props: OperationModalProps) {
       }, 300);
 
     } else {
-
+      // Restore the minimized panel
       emit('panel-minimize-state', {
         isMinimized: false,
         showIndicator: false,
@@ -295,11 +296,15 @@ function OperationModal(props: OperationModalProps) {
   // Listen for restore event from the global indicator
   createEffect(() => {
     let unlisten: (() => void) | undefined;
-    listen('restore-panel', () => {
-      handleMinimize();
-    }).then((unlistenFn) => {
+    
+    const setupListener = async () => {
+      const unlistenFn = await listen('restore-panel', () => {
+        handleMinimize();
+      });
       unlisten = unlistenFn;
-    });
+    };
+    
+    setupListener();
 
     onCleanup(() => {
       if (unlisten) unlisten();
@@ -331,7 +336,6 @@ function OperationModal(props: OperationModalProps) {
     <Portal>
       <Show when={rendered() && !isMinimized()}>
         <div class="fixed inset-0 flex items-center justify-center z-50 p-2">
-          <Show when={!isMinimized()}>
             <div
               class="absolute inset-0 transition-all duration-300 ease-out"
               classList={{
@@ -341,8 +345,6 @@ function OperationModal(props: OperationModalProps) {
               style="background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(2px);"
               onClick={handleMinimize}
             ></div>
-          </Show>
-          <Show when={!isMinimized()}>
             <div
               class="relative bg-base-200 rounded-xl shadow-2xl border border-base-300 w-full max-w-lg sm:max-w-lg md:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col transition-all duration-300 ease-out"
               classList={{
@@ -386,7 +388,7 @@ function OperationModal(props: OperationModalProps) {
                 <Show when={!result() && !scanWarning()}>
                   <div class="flex items-center animate-pulse mt-2">
                     <span class="loading loading-spinner loading-xs mr-2"></span>
-                    In progress...
+                    {t('status.in_progress')}
                   </div>
                 </Show>
               </div>
@@ -395,7 +397,7 @@ function OperationModal(props: OperationModalProps) {
                 <div class="alert alert-warning mx-4 my-2 rounded-lg">
                   <ShieldAlert class="w-6 h-6" />
                   <div>
-                    <div class="font-bold">VirusTotal Scan Warning</div>
+                    <div class="font-bold">{t('scan.virus_total_warning')}</div>
                     <div>{scanWarning()!.message}</div>
                   </div>
                 </div>
@@ -411,7 +413,7 @@ function OperationModal(props: OperationModalProps) {
                 <Show when={scanWarning()}>
                   <button class="btn btn-warning btn-sm" onClick={handleInstallAnyway}>
                     <TriangleAlert class="w-4 h-4 mr-2" />
-                    Install Anyway
+                    {t('scan.install_anyway')}
                   </button>
                 </Show>
                 <Show when={showNextStep()}>
@@ -432,7 +434,6 @@ function OperationModal(props: OperationModalProps) {
                 </button>
               </div>
             </div>
-          </Show>
         </div>
       </Show>
 

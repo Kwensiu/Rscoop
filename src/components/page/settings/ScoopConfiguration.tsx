@@ -2,6 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { FolderCog, Save, CheckCircle, Folder, RefreshCw } from "lucide-solid";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 export interface ScoopConfigurationProps {
     onOpenDirectory?: () => void;
@@ -27,48 +28,48 @@ export default function ScoopConfiguration(props: ScoopConfigurationProps) {
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to fetch scoop path:", errorMsg);
-            setPathError("Could not load Scoop path setting.");
+            setPathError(t("settings.scoop_configuration.load_error"));
         } finally {
             setPathIsLoading(false);
         }
     };
-    
+
     const handleSavePath = async () => {
         setIsSaving(true);
         setPathError(null);
         setPathSuccessMessage(null);
         try {
             await invoke("set_scoop_path", { path: scoopPath() });
-            setPathSuccessMessage("Scoop path saved and applied successfully!");
+            setPathSuccessMessage(t("settings.scoop_configuration.save_success"));
             setTimeout(() => setPathSuccessMessage(null), 5000);
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to save scoop path:", errorMsg);
-            setPathError("Failed to save Scoop path: " + errorMsg);
+            setPathError(t("settings.scoop_configuration.save_error") + errorMsg);
         } finally {
             setIsSaving(false);
         }
     };
-    
+
     const detectScoopPath = async () => {
         setIsDetecting(true);
         setPathError(null);
         try {
             const detectedPath = await invoke<string>("detect_scoop_path");
             setScoopPath(detectedPath);
-            setPathSuccessMessage("Scoop path detected successfully!");
+            setPathSuccessMessage(t("settings.scoop_configuration.detect_success"));
             setIsValidPath(true);
             setValidationResult(null);
             setTimeout(() => setPathSuccessMessage(null), 5000);
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to detect scoop path:", errorMsg);
-            setPathError(`Failed to detect Scoop path. Please make sure the SCOOP environment variable is set correctly.`);
+            setPathError(t("settings.scoop_configuration.detect_error"));
         } finally {
             setIsDetecting(false);
         }
     };
-    
+
     // Validate path format
     const validatePath = (path: string) => {
         // Simple validation to check if path contains invalid characters
@@ -77,7 +78,7 @@ export default function ScoopConfiguration(props: ScoopConfigurationProps) {
         setIsValidPath(isValid);
         return isValid;
     };
-    
+
     // Validate when path changes
     const handlePathChange = (value: string) => {
         setScoopPath(value);
@@ -89,13 +90,13 @@ export default function ScoopConfiguration(props: ScoopConfigurationProps) {
         // Clear previous validation result when path changes
         setValidationResult(null);
     };
-    
+
     // Validate Scoop directory structure
     const validateScoopDirectory = async () => {
         if (!scoopPath() || !isValidPath()) {
             setValidationResult({
                 isValid: false,
-                message: "Please enter a valid path first"
+                message: t("settings.scoop_configuration.validation_error")
             });
             return;
         }
@@ -105,31 +106,31 @@ export default function ScoopConfiguration(props: ScoopConfigurationProps) {
         try {
             const isValid = await invoke<boolean>("validate_scoop_directory", { path: scoopPath() });
             if (isValid) {
-                setPathSuccessMessage("Scoop directory structure is valid");
+                setPathSuccessMessage(t("settings.scoop_configuration.valid_directory"));
             } else {
-                setPathSuccessMessage("Directory exists but Scoop structure is invalid. Missing 'apps' or 'buckets' directories.");
+                setPathSuccessMessage(t("settings.scoop_configuration.invalid_directory"));
             }
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to validate scoop directory:", errorMsg);
             setValidationResult({
                 isValid: false,
-                message: `Validation failed: ${errorMsg}`
+                message: t("settings.scoop_configuration.validation_failed") + errorMsg
             });
         } finally {
             setIsValidating(false);
         }
     };
-    
+
     onMount(() => {
         fetchScoopPath();
     });
 
     return (
         <Card
-            title="Scoop Configuration"
+            title={t("settings.scoop_configuration.title")}
             icon={FolderCog}
-            description="Set the installation path for your Scoop directory. Changes will take effect immediately."
+            description={t("settings.scoop_configuration.description")}
             headerAction={
                 <div class="flex items-center gap-2">
                     <Show when={props.onOpenDirectory}>
@@ -151,48 +152,49 @@ export default function ScoopConfiguration(props: ScoopConfigurationProps) {
                 </div>
             }
         >
-            <div class="form-control w-full max-w-lg">
-                <label class="label">
-                    <span class="label-text font-semibold flex items-center">
-                        Scoop Installation Path
-                    </span>
-                </label>
+            <label class="label">
+                <span class="label-text font-semibold flex items-center">
+                    {t("settings.scoop_configuration.path_label")}
+                </span>
+            </label>
 
-                <div class="join">
-                    <input 
+            <div class="form-control w-full max-w-lg">
+
+                <div class="join w-full">
+                    <input
                         type="text"
-                        placeholder={pathIsLoading() ? "Loading..." : "Enter Scoop path (e.g. C:\\scoop)"}
-                        class={`input input-bordered join-item w-full ${!isValidPath() ? 'input-error' : ''}`} 
+                        placeholder={pathIsLoading() ? t("settings.scoop_configuration.loading") : t("settings.scoop_configuration.path_placeholder")}
+                        class={`input input-bordered join-item w-full ${!isValidPath() ? 'input-error' : ''}`}
                         value={scoopPath()}
                         onInput={(e) => handlePathChange(e.currentTarget.value)}
                         disabled={pathIsLoading() || isDetecting() || isSaving() || isValidating()}
                     />
-                    <button 
-                        class="btn btn-primary join-item" 
-                        onClick={handleSavePath} 
+                    <button
+                        class="btn btn-primary join-item"
+                        onClick={handleSavePath}
                         disabled={pathIsLoading() || isDetecting() || isSaving() || !isValidPath() || isValidating()}
-                        >
+                    >
                         <Save class="w-4 h-4 mr-1" />
-                        Save
+                        {t("settings.scoop_configuration.save")}
                     </button>
-                    <button 
-                        class={`btn join-item ${isDetecting() ? 'btn-info' : 'btn-info'}`} 
-                        onClick={detectScoopPath} 
+                    <button
+                        class={`btn join-item ${isDetecting() ? 'btn-info' : 'btn-info'}`}
+                        onClick={detectScoopPath}
                         disabled={pathIsLoading() || isDetecting() || isSaving() || isValidating()}
-                        >
-                        Auto
+                    >
+                        {t("settings.scoop_configuration.auto")}
                     </button>
-                    <button 
-                        class={`btn join-item ${validationResult()?.isValid ? 'btn-soft' : 'btn-soft btn-primary'}`} 
-                        onClick={validateScoopDirectory} 
+                    <button
+                        class={`btn join-item ${validationResult()?.isValid ? 'btn-soft' : 'btn-soft btn-primary'}`}
+                        onClick={validateScoopDirectory}
                         disabled={pathIsLoading() || isDetecting() || isSaving() || isValidating() || !scoopPath()}
                     >
-                    Test
+                        {t("settings.scoop_configuration.test")}
                     </button>
                 </div>
-                
+
                 <div class="text-sm text-base-content/70 mt-2">
-                    Automatically detects Scoop installation using multiple methods: environment variables, scoop config command, and common installation paths.
+                    {t("settings.scoop_configuration.auto_detect_description")}
                 </div>
 
                 {validationResult() && (

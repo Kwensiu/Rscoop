@@ -13,6 +13,7 @@ import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSe
 import ThemeSettings from "../components/page/settings/ThemeSettings";
 import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
 import heldStore from "../stores/held";
+import { t } from "../i18n";
 
 interface SettingsPageProps {
     activeSection: string;
@@ -27,11 +28,11 @@ function SettingsPage(props: SettingsPageProps) {
     let aboutSectionRef: AboutSectionRef | undefined;
 
     const TABS = [
-        { key: 'automation', label: 'Automation' },
-        { key: 'management', label: 'Management' },
-        { key: 'security', label: 'Security' },
-        { key: 'window', label: 'Window & UI' },
-        { key: 'about', label: 'About' },
+        { key: 'automation', labelkey: "settings.category.automation" },
+        { key: 'management', labelkey: "settings.category.management" },
+        { key: 'security', labelkey: "settings.category.security" },
+        { key: 'window', labelkey: "settings.category.window_ui" },
+        { key: 'about', labelkey: "settings.category.about" },
     ];
     const [activeTab, setActiveTab] = createSignal<string>('automation');
 
@@ -55,7 +56,7 @@ function SettingsPage(props: SettingsPageProps) {
     return (
         <>
             <div class="p-6">
-                <h1 class="text-3xl font-bold mb-4">Settings</h1>
+                <h1 class="text-3xl font-bold mb-4">{t("settings.title")}</h1>
                 {/* Tab Navigation */}
                 <div role="tablist" aria-label="Settings Sections" class="tabs tabs-border mb-6">
                     <For each={TABS}>
@@ -67,7 +68,7 @@ function SettingsPage(props: SettingsPageProps) {
                                 role="tab"
                                 aria-selected={activeTab() === tab.key}
                             >
-                                {tab.label}
+                                {t(tab.labelkey)}
                             </a>
                         )}
                     </For>

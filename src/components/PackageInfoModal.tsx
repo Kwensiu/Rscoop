@@ -1,5 +1,6 @@
 import { For, Show, createEffect, createSignal, createMemo, Switch, Match } from "solid-js";
 import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
+import { Portal } from "solid-js/web";
 import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
@@ -9,6 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import { openPath } from '@tauri-apps/plugin-opener';
 import settingsStore from "../stores/settings";
+import { t } from "../i18n";
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
@@ -51,7 +53,7 @@ function DetailValue(props: { value: string }) {
     if (parsed() && codeRef) {
       hljs.highlightElement(codeRef);
     }
-    
+
     // Cleanup function to prevent memory leaks
     return () => {
       if (codeRef) {
@@ -135,24 +137,24 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     if (!props.info?.details) return [];
 
     const desiredOrder = [
-      'Name',
-      'Description',
-      'Bucket',
-      'Installed Version',
-      'Latest Version',
-      'Version',
-      'Includes',
-      'Installed',
-      'Homepage',
-      'License'
+      { key: 'Name', label: t('package_info.name') },
+      { key: 'Description', label: t('package_info.description') },
+      { key: 'Bucket', label: t('package_info.bucket') },
+      { key: 'Installed Version', label: t('package_info.installed_version') },
+      { key: 'Latest Version', label: t('package_info.latest_version') },
+      { key: 'Version', label: t('package_info.version') },
+      { key: 'Includes', label: t('package_info.includes') },
+      { key: 'Installed', label: t('package_info.installed') },
+      { key: 'Homepage', label: t('package_info.homepage') },
+      { key: 'License', label: t('package_info.license') }
     ];
 
     const detailsMap = new Map(props.info.details);
-    const result: [string, string][] = [];
+    const result: [string, string, string][] = []; // [label, value, originalKey]
 
-    for (const key of desiredOrder) {
+    for (const { key, label } of desiredOrder) {
       if (detailsMap.has(key)) {
-        result.push([key, detailsMap.get(key)!]);
+        result.push([label, detailsMap.get(key)!, key]);
       }
     }
 
@@ -169,11 +171,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   const [versionLoading, setVersionLoading] = createSignal(false);
   const [versionError, setVersionError] = createSignal<string | null>(null);
   const [switchingVersion, setSwitchingVersion] = createSignal<string | null>(null);
-  
+
   // State for uninstall confirmation
   const [uninstallConfirm, setUninstallConfirm] = createSignal(false);
   const [uninstallTimer, setUninstallTimer] = createSignal<number | null>(null);
-  
+
   // State for update button
   const [updateConfirm, setUpdateConfirm] = createSignal(false);
   const [updateTimer, setUpdateTimer] = createSignal<number | null>(null);
@@ -181,7 +183,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   createEffect(() => {
     if (props.info?.notes && codeRef) {
       hljs.highlightElement(codeRef);
-      
+
       // Clean up highlight on effect dispose
       return () => {
         if (codeRef) {
@@ -246,7 +248,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`Failed to fetch manifest for ${pkg.name}:`, errorMsg);
-      setManifestError(`Failed to load manifest for ${pkg.name}: ${errorMsg}`);
+      setManifestError(t('package_info.error_loading_manifest', { name: pkg.name, error: errorMsg }));
     } finally {
       setManifestLoading(false);
     }
@@ -272,7 +274,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`Failed to fetch versions for ${pkg.name}:`, errorMsg);
-      setVersionError(`Failed to load versions for ${pkg.name}: ${errorMsg}`);
+      setVersionError(t('package_info.error_loading_versions', { name: pkg.name, error: errorMsg }));
     } finally {
       setVersionLoading(false);
     }
@@ -299,7 +301,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`Failed to switch ${pkg.name} to version ${targetVersion}:`, errorMsg);
-      setVersionError(`Failed to switch to version ${targetVersion}: ${errorMsg}`);
+      setVersionError(t('package_info.error_switching_version', { version: targetVersion, error: errorMsg }));
     } finally {
       setSwitchingVersion(null);
     }
@@ -339,357 +341,359 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   };
 
   return (
-    <Show when={rendered()}>
-      <div class="fixed inset-0 flex items-center justify-center z-20 p-20">
-        <div 
-          class="absolute inset-0 transition-all duration-300 ease-in-out"
-          classList={{
-            "opacity-0": !isVisible(),
-            "opacity-100": isVisible() && !isClosing(),
-          }}
-          style="background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(2px);"
-          onClick={handleBackdropClick}
-        ></div>
-        <div 
-          class="relative bg-base-200 rounded-lg shadow-xl border border-base-300 w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col transition-all duration-300 ease-in-out"
-          classList={{
-            "scale-95 opacity-0": !isVisible() || isClosing(),
-            "scale-100 opacity-100": isVisible() && !isClosing(),
-          }}
-        >
-          <div class="flex justify-between items-start p-4 border-b border-base-300">
-            <h3 class="font-bold text-lg">Information for {props.pkg?.name}</h3>
-            <div class="flex gap-2">
-              <div class="dropdown dropdown-end">
-                <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
-                  <Ellipsis class="w-5 h-5" />
-                </label>
-                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[10]">
-                  <li>
-                    <a onClick={() => props.pkg && fetchManifest(props.pkg)}>
-                      <FileText class="w-4 h-4 mr-2" />
-                      View Manifest
-                    </a>
-                  </li>
-                  <Show when={props.pkg?.is_installed}>
+    <Portal>
+      <Show when={rendered()}>
+        <div class="fixed inset-0 flex items-center justify-center z-20 p-20">
+          <div
+            class="absolute inset-0 transition-all duration-300 ease-in-out"
+            classList={{
+              "opacity-0": !isVisible(),
+              "opacity-100": isVisible() && !isClosing(),
+            }}
+            style="background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(2px);"
+            onClick={handleBackdropClick}
+          ></div>
+          <div
+            class="relative bg-base-200 rounded-lg shadow-xl border border-base-300 w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col transition-all duration-300 ease-in-out z-10"
+            classList={{
+              "scale-95 opacity-0": !isVisible() || isClosing(),
+              "scale-100 opacity-100": isVisible() && !isClosing(),
+            }}
+          >
+            <div class="flex justify-between items-start p-4 border-b border-base-300">
+              <h3 class="font-bold text-lg">{t('package_info.title', { name: props.pkg?.name })}</h3>
+              <div class="flex gap-2">
+                <div class="dropdown dropdown-end">
+                  <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
+                    <Ellipsis class="w-5 h-5" />
+                  </label>
+                  <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[10]">
                     <li>
-                      <button type="button" onClick={async () => {
-                        if (props.pkg) {
-                          try {
-                            const packagePath = await invoke<string>("get_package_path", {
-                              packageName: props.pkg.name
-                            });
-                            await openPath(packagePath);
-                          } catch (error) {
-                            console.error('Failed to open package path:', error);
-                          }
-                        }
-                      }}>
-                        <ExternalLink class="w-4 h-4 mr-2" />
-                        Open in Explorer
-                      </button>
-                    </li>
-                  </Show>
-                  <Show when={props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)}>
-                    <li>
-                      <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
-                        <RefreshCw class="w-4 h-4 mr-2" />
-                        Switch Version
-                      </a>
-                    </li>
-                  </Show>
-                  <Show when={props.pkg?.is_installed}>
-                    <li>
-                      <a onClick={async () => {
-                        if (props.pkg) {
-                          try {
-                            const debug = await invoke<string>("debug_package_structure", {
-                              packageName: props.pkg.name,
-                              global: false,
-                            });
-                            console.log("Package structure debug:", debug);
-                            alert(debug);
-                          } catch (error) {
-                            console.error('Debug failed:', error);
-                          }
-                        }
-                      }}>
+                      <a onClick={() => props.pkg && fetchManifest(props.pkg)}>
                         <FileText class="w-4 h-4 mr-2" />
-                        Debug Structure
+                        {t('package_info.view_manifest')}
                       </a>
                     </li>
-                  </Show>
-                </ul>
-              </div>
-              <button 
-                class="btn btn-sm btn-circle btn-ghost"
-                onClick={handleClose}
-              >
-                <X class="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          
-          <div class="overflow-y-auto flex-grow p-4">
-            <Show when={props.loading}>
-              <div class="flex justify-center items-center h-40">
-                <span class="loading loading-spinner loading-lg"></span>
-              </div>
-            </Show>
-            <Show when={props.error}>
-              <div role="alert" class="alert alert-error">
-                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <span>{props.error}</span>
-              </div>
-            </Show>
-            <Show when={props.info}>
-              <div class="flex flex-col md:flex-row gap-6">
-                <div class="flex-1">
-                  <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
-                  <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
-                    <For each={orderedDetails()}>
-                      {([key, value]) => (
-                        <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}{key === 'Installed' || key === 'Includes'}:</div>
-                          <div class="col-span-2">
-                            <Switch fallback={<DetailValue value={value} />}>
-                              <Match when={key === 'Homepage'}>
-                                <a href={value} target="_blank" rel="noopener noreferrer" class="link link-primary break-all">{value}</a>
-                              </Match>
-                              <Match when={key === 'License'}>
-                                <LicenseValue value={value} />
-                              </Match>
-                              <Match when={key === 'Includes'}>
-                                <IncludesValue value={value} />
-                              </Match>
-                            </Switch>
-                          </div>
-                        </div>
-                      )}
-                    </For>
-                  </div>
+                    <Show when={props.pkg?.is_installed}>
+                      <li>
+                        <button type="button" onClick={async () => {
+                          if (props.pkg) {
+                            try {
+                              const packagePath = await invoke<string>("get_package_path", {
+                                packageName: props.pkg.name
+                              });
+                              await openPath(packagePath);
+                            } catch (error) {
+                              console.error(t('package_info.failed_to_open_path'), error);
+                            }
+                          }
+                        }}>
+                          <ExternalLink class="w-4 h-4 mr-2" />
+                          {t('package_info.open_in_explorer')}
+                        </button>
+                      </li>
+                    </Show>
+                    <Show when={props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)}>
+                      <li>
+                        <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
+                          <RefreshCw class="w-4 h-4 mr-2" />
+                          {t('package_info.switch_version')}
+                        </a>
+                      </li>
+                    </Show>
+                    <Show when={props.pkg?.is_installed}>
+                      <li>
+                        <a onClick={async () => {
+                          if (props.pkg) {
+                            try {
+                              const debug = await invoke<string>("debug_package_structure", {
+                                packageName: props.pkg.name,
+                                global: false,
+                              });
+                              console.log("Package structure debug:", debug);
+                              alert(debug);
+                            } catch (error) {
+                              console.error(t('package_info.debug_failed'), error);
+                            }
+                          }
+                        }}>
+                          <FileText class="w-4 h-4 mr-2" />
+                          {t('package_info.debug_structure')}
+                        </a>
+                      </li>
+                    </Show>
+                  </ul>
                 </div>
-                <Show when={props.info?.notes}>
+                <button
+                  class="btn btn-sm btn-circle btn-ghost"
+                  onClick={handleClose}
+                >
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-y-auto flex-grow p-4">
+              <Show when={props.loading}>
+                <div class="flex justify-center items-center h-40">
+                  <span class="loading loading-spinner loading-lg"></span>
+                </div>
+              </Show>
+              <Show when={props.error}>
+                <div role="alert" class="alert alert-error">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span>{props.error}</span>
+                </div>
+              </Show>
+              <Show when={props.info}>
+                <div class="flex flex-col md:flex-row gap-6">
                   <div class="flex-1">
-                    <h4 class="text-lg font-medium mb-3 border-b pb-2">Notes</h4>
-                    <div
-                      class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner"
-                      style={{ "background-color": codeBgColor() }}
-                    >
-                      <pre class="p-4 m-0">
-                        <code ref={codeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{props.info?.notes}</code>
-                      </pre>
+                    <h4 class="text-lg font-medium mb-3 pb-2 border-b">{t('package_info.details')}</h4>
+                    <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
+                      <For each={orderedDetails()}>
+                        {([label, value, originalKey]) => (
+                          <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                            <div class="font-semibold text-base-content/70 capitalize col-span-1">{label}:</div>
+                            <div class="col-span-2">
+                              <Switch fallback={<DetailValue value={value} />}>
+                                <Match when={originalKey === 'Homepage'}>
+                                  <a href={value} target="_blank" rel="noopener noreferrer" class="link link-primary break-all">{value}</a>
+                                </Match>
+                                <Match when={originalKey === 'License'}>
+                                  <LicenseValue value={value} />
+                                </Match>
+                                <Match when={originalKey === 'Includes'}>
+                                  <IncludesValue value={value} />
+                                </Match>
+                              </Switch>
+                            </div>
+                          </div>
+                        )}
+                      </For>
                     </div>
                   </div>
-                </Show>
-              </div>
-            </Show>
-
-            {/* Version Switcher Section */}
-            <Show when={versionInfo() || versionLoading()}>
-              <div class="divider">Version Manager</div>
-              <Show when={versionLoading()} fallback={
-                <div class="bg-base-300 rounded-lg p-4">
-                  <h4 class="text-lg font-medium mb-3">Available Versions</h4>
-                  <Show when={versionError()}>
-                    <div role="alert" class="alert alert-error mb-3">
-                      <span>{versionError()}</span>
+                  <Show when={props.info?.notes}>
+                    <div class="flex-1">
+                      <h4 class="text-lg font-medium mb-3 border-b pb-2">{t('package_info.notes')}</h4>
+                      <div
+                        class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner"
+                        style={{ "background-color": codeBgColor() }}
+                      >
+                        <pre class="p-4 m-0">
+                          <code ref={codeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{props.info?.notes}</code>
+                        </pre>
+                      </div>
                     </div>
                   </Show>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                    <For each={versionInfo()?.available_versions || []}>
-                      {(version) => (
-                        <div 
-                          class="card bg-base-100 shadow-sm p-3 transition-all hover:shadow-md"
-                          classList={{
-                            "ring-2 ring-primary": version.is_current,
-                          }}
-                        >
-                          <div class="flex items-center justify-between">
-                            <div>
-                              <div class="font-semibold text-sm">{version.version}</div>
-                              <Show when={version.is_current}>
-                                <div class="text-xs text-primary font-medium">Current</div>
+                </div>
+              </Show>
+
+              {/* Version Switcher Section */}
+              <Show when={versionInfo() || versionLoading()}>
+                <div class="divider">{t('package_info.version_manager')}</div>
+                <Show when={versionLoading()} fallback={
+                  <div class="bg-base-300 rounded-lg p-4">
+                    <h4 class="text-lg font-medium mb-3">{t('package_info.available_versions')}</h4>
+                    <Show when={versionError()}>
+                      <div role="alert" class="alert alert-error mb-3">
+                        <span>{versionError()}</span>
+                      </div>
+                    </Show>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      <For each={versionInfo()?.available_versions || []}>
+                        {(version) => (
+                          <div
+                            class="card bg-base-100 shadow-sm p-3 transition-all hover:shadow-md"
+                            classList={{
+                              "ring-2 ring-primary": version.is_current,
+                            }}
+                          >
+                            <div class="flex items-center justify-between">
+                              <div>
+                                <div class="font-semibold text-sm">{version.version}</div>
+                                <Show when={version.is_current}>
+                                  <div class="text-xs text-primary font-medium">{t('package_info.current')}</div>
+                                </Show>
+                              </div>
+                              <Show when={!version.is_current}>
+                                <button
+                                  class="btn btn-xs btn-primary"
+                                  disabled={switchingVersion() === version.version}
+                                  onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
+                                >
+                                  <Show when={switchingVersion() === version.version}
+                                    fallback={t('package_info.switch')}
+                                  >
+                                    <span class="loading loading-spinner loading-xs"></span>
+                                  </Show>
+                                </button>
                               </Show>
                             </div>
-                            <Show when={!version.is_current}>
-                              <button
-                                class="btn btn-xs btn-primary"
-                                disabled={switchingVersion() === version.version}
-                                onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
-                              >
-                                <Show when={switchingVersion() === version.version}
-                                  fallback="Switch"
-                                >
-                                  <span class="loading loading-spinner loading-xs"></span>
-                                </Show>
-                              </button>
-                            </Show>
                           </div>
-                        </div>
-                      )}
-                    </For>
+                        )}
+                      </For>
+                    </div>
                   </div>
-                </div>
-              }>
-                <div class="bg-base-300 rounded-lg p-4 flex items-center justify-center">
-                  <span class="loading loading-spinner"></span>
-                </div>
-              </Show>
-            </Show>
-          </div>
-          <div class="modal-action p-4 border-t border-base-300 flex flex-wrap justify-between">
-            <div class="flex space-x-2 mb-2 sm:mb-0">
-              {/* Update (Force Update) Bottom in PackageInfoModal */}
-              <Show when={props.pkg?.is_installed}>
-                <button
-                  type="button"
-                  class="btn w-24"
-                  classList={{ 
-                    "btn-primary": !!props.pkg?.available_version && !updateConfirm(),
-                    "btn-soft text-base-content/50": !props.pkg?.available_version && !updateConfirm(),
-                    "btn-warning": updateConfirm()
-                  }}
-                  onClick={() => {
-                    if (updateConfirm()) {
-                      // Execute force update
-                      if (updateTimer()) {
-                        window.clearTimeout(updateTimer()!);
-                        setUpdateTimer(null);
-                      }
-                      setUpdateConfirm(false);
-                      if (props.pkg) {
-                        // Implement force update functionality and show in OperationModal
-                        // Use the dedicated handleForceUpdate function if available
-                        if (props.onForceUpdate) {
-                          props.onForceUpdate(props.pkg);
-                        } else if (props.setOperationTitle) {
-                          // Fallback to direct invocation with proper UI feedback
-                          props.setOperationTitle(`Force Updating ${props.pkg.name}`);
-                          invoke("update_package", { 
-                            packageName: props.pkg.name,
-                            force: true
-                          }).catch(err => {
-                            console.error("Force update invocation failed:", err);
-                          });
-                        } else {
-                          console.warn("Neither onForceUpdate nor setOperationTitle is provided for force update operation");
-                        }
-                        props.onPackageStateChanged?.();
-                      }
-                    } else {
-                      if (props.pkg?.available_version) {
-                        // Normal update - use package operations hook for consistency
-                        if (props.pkg && props.onUpdate) {
-                          props.onUpdate(props.pkg);
-                          // Notify parent that package state may change
-                          props.onPackageStateChanged?.();
-                        } else if (props.pkg) {
-                          // Fallback to direct invocation if onUpdate is not provided
-                          // We should not directly call setOperationTitle, but use the hook function
-                          // This ensures the operationTitle signal is properly updated
-                          if (props.setOperationTitle) {
-                            props.setOperationTitle(`Updating ${props.pkg.name}`);
-                          }
-                          invoke("update_package", { 
-                            packageName: props.pkg.name 
-                          }).catch(err => {
-                            console.error("Update invocation failed:", err);
-                          });
-                          props.onPackageStateChanged?.();
-                        }
-                      } else {
-                        // No update available, show force update confirmation
-                        setUpdateConfirm(true);
-                        const timer = window.setTimeout(() => {
-                          setUpdateConfirm(false);
-                          setUpdateTimer(null);
-                        }, 3000);
-                        setUpdateTimer(timer);
-                      }
-                    }
-                  }}
-                >
-                  {updateConfirm() ? "Force?" : "Update"}
-                </button>
-              </Show>
-              {/* Change Bucket Bottom in PackageInfoModal */}
-              <Show when={props.pkg?.is_installed && props.onChangeBucket}>
-                <button
-                  type="button"
-                  class="btn btn-outline btn-primary"
-                  onClick={() => {
-                    if (props.pkg) {
-                      props.onChangeBucket!(props.pkg);
-                    }
-                  }}
-                >
-                  Change Bucket
-                </button>
+                }>
+                  <div class="bg-base-300 rounded-lg p-4 flex items-center justify-center">
+                    <span class="loading loading-spinner"></span>
+                  </div>
+                </Show>
               </Show>
             </div>
-            <div class="flex">
-              <form method="dialog">
-                <Show when={!props.pkg?.is_installed && props.onInstall}>
-                  <button
-                    type="button"
-                    class="btn btn-primary mr-2"
-                    onClick={() => {
-                      if (props.pkg) {
-                        props.onInstall!(props.pkg);
-                        // Notify parent that package state may change
-                        props.onPackageStateChanged?.();
-                      }
-                    }}
-                  >
-                    <Download class="w-4 h-4 mr-2" />
-                    Install
-                  </button>
-                </Show>
+            <div class="modal-action p-4 border-t border-base-300 flex flex-wrap justify-between">
+              <div class="flex space-x-2 mb-2 sm:mb-0">
+                {/* Update (Force Update) Bottom in PackageInfoModal */}
                 <Show when={props.pkg?.is_installed}>
                   <button
                     type="button"
-                    class="btn btn-error mr-2 w-32"
-                    classList={{ "btn-warning": uninstallConfirm() }}
+                    class="btn w-24"
+                    classList={{
+                      "btn-primary": !!props.pkg?.available_version && !updateConfirm(),
+                      "btn-soft text-base-content/50": !props.pkg?.available_version && !updateConfirm(),
+                      "btn-warning": updateConfirm()
+                    }}
                     onClick={() => {
-                      if (uninstallConfirm()) {
-                        // Execute uninstall
-                        if (uninstallTimer()) {
-                          window.clearTimeout(uninstallTimer()!);
-                          setUninstallTimer(null);
+                      if (updateConfirm()) {
+                        // Execute force update
+                        if (updateTimer()) {
+                          window.clearTimeout(updateTimer()!);
+                          setUpdateTimer(null);
                         }
-                        setUninstallConfirm(false);
-                      if (props.pkg) {
-                        props.onUninstall?.(props.pkg);
-                        // Notify parent that package state may change
-                        props.onPackageStateChanged?.();
+                        setUpdateConfirm(false);
+                        if (props.pkg) {
+                          // Implement force update functionality and show in OperationModal
+                          // Use the dedicated handleForceUpdate function if available
+                          if (props.onForceUpdate) {
+                            props.onForceUpdate(props.pkg);
+                          } else if (props.setOperationTitle) {
+                            // Fallback to direct invocation with proper UI feedback
+                            props.setOperationTitle(`Force Updating ${props.pkg.name}`);
+                            invoke("update_package", {
+                              packageName: props.pkg.name,
+                              force: true
+                            }).catch(err => {
+                              console.error("Force update invocation failed:", err);
+                            });
+                          } else {
+                            console.warn("Neither onForceUpdate nor setOperationTitle is provided for force update operation");
+                          }
+                          props.onPackageStateChanged?.();
                         }
                       } else {
-                        // First click - show confirmation
-                        setUninstallConfirm(true);
-                        const timer = window.setTimeout(() => {
-                          setUninstallConfirm(false);
-                          setUninstallTimer(null);
-                        }, 3000);
-                        setUninstallTimer(timer);
+                        if (props.pkg?.available_version) {
+                          // Normal update - use package operations hook for consistency
+                          if (props.pkg && props.onUpdate) {
+                            props.onUpdate(props.pkg);
+                            // Notify parent that package state may change
+                            props.onPackageStateChanged?.();
+                          } else if (props.pkg) {
+                            // Fallback to direct invocation if onUpdate is not provided
+                            // We should not directly call setOperationTitle, but use the hook function
+                            // This ensures the operationTitle signal is properly updated
+                            if (props.setOperationTitle) {
+                              props.setOperationTitle(`Updating ${props.pkg.name}`);
+                            }
+                            invoke("update_package", {
+                              packageName: props.pkg.name
+                            }).catch(err => {
+                              console.error("Update invocation failed:", err);
+                            });
+                            props.onPackageStateChanged?.();
+                          }
+                        } else {
+                          // No update available, show force update confirmation
+                          setUpdateConfirm(true);
+                          const timer = window.setTimeout(() => {
+                            setUpdateConfirm(false);
+                            setUpdateTimer(null);
+                          }, 3000);
+                          setUpdateTimer(timer);
+                        }
                       }
                     }}
                   >
-                    <Trash2 class="w-4 h-4 mr-2" />
-                    {uninstallConfirm() ? "Sure?" : "Uninstall"}
+
+                    {updateConfirm() ? t('package_info.force_update') : t('package_info.update')}
                   </button>
                 </Show>
-                <button class="btn" onClick={(e) => {
-                  e.preventDefault();
-                  handleClose();
-                }}>
-                  {props.showBackButton ? "Back to Bucket" : "Close"}
-                </button>
-              </form>
+                {/* Change Bucket Bottom in PackageInfoModal */}
+                <Show when={props.pkg?.is_installed && props.onChangeBucket}>
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-primary"
+                    onClick={() => {
+                      if (props.pkg) {
+                        props.onChangeBucket!(props.pkg);
+                      }
+                    }}
+                  >
+                    {t('package_info.change_bucket')}
+                  </button>
+                </Show>
+              </div>
+              <div class="flex">
+                <form method="dialog">
+                  <Show when={!props.pkg?.is_installed && props.onInstall}>
+                    <button
+                      type="button"
+                      class="btn btn-primary mr-2"
+                      onClick={() => {
+                        if (props.pkg) {
+                          props.onInstall!(props.pkg);
+                          // Notify parent that package state may change
+                          props.onPackageStateChanged?.();
+                        }
+                      }}
+                    >
+                      <Download class="w-4 h-4 mr-2" />
+                      {t('buttons.install')}
+                    </button>
+                  </Show>
+                  <Show when={props.pkg?.is_installed}>
+                    <button
+                      type="button"
+                      class="btn btn-error mr-2 w-32"
+                      classList={{ "btn-warning": uninstallConfirm() }}
+                      onClick={() => {
+                        if (uninstallConfirm()) {
+                          // Execute uninstall
+                          if (uninstallTimer()) {
+                            window.clearTimeout(uninstallTimer()!);
+                            setUninstallTimer(null);
+                          }
+                          setUninstallConfirm(false);
+                          if (props.pkg) {
+                            props.onUninstall?.(props.pkg);
+                            // Notify parent that package state may change
+                            props.onPackageStateChanged?.();
+                          }
+                        } else {
+                          // First click - show confirmation
+                          setUninstallConfirm(true);
+                          const timer = window.setTimeout(() => {
+                            setUninstallConfirm(false);
+                            setUninstallTimer(null);
+                          }, 3000);
+                          setUninstallTimer(timer);
+                        }
+                      }}
+                    >
+                      <Trash2 class="w-4 h-4 mr-2" />
+                      {uninstallConfirm() ? t('package_info.sure') : t('buttons.uninstall')}
+                    </button>
+                  </Show>
+                  <button class="btn" onClick={(e) => {
+                    e.preventDefault();
+                    handleClose();
+                  }}>
+                    {props.showBackButton ? t('package_info.back_to_bucket') : t('package_info.close')}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="modal-backdrop" onClick={props.onClose}></div>
+          <div class="modal-backdrop" onClick={props.onClose}></div>
         </div>
         <ManifestModal
           packageName={props.pkg?.name ?? ""}
@@ -698,7 +702,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           error={manifestError()}
           onClose={closeManifestModal}
         />
-    </Show>
+      </Show>
+    </Portal>
   );
 }
 

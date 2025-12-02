@@ -3,6 +3,7 @@ import { RefreshCw, Eye } from "lucide-solid";
 import { BucketInfo } from "../../../hooks/useBuckets";
 import { openPath } from '@tauri-apps/plugin-opener';
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 interface BucketCardProps {
   bucket: BucketInfo;
@@ -25,7 +26,7 @@ function BucketCard(props: BucketCardProps) {
           {props.bucket.git_branch}
         </div>
       </Show>
-      
+
       <Card
         title={
           <h3 class="whitespace-nowrap overflow-hidden text-ellipsis max-w-full" title={props.bucket.name}>
@@ -38,11 +39,11 @@ function BucketCard(props: BucketCardProps) {
               <span class="font-bold text-primary text-xl">
                 {props.bucket.manifest_count}
               </span>
-              <span class="text-sm">packages</span>
+              <span class="text-sm">{t("bucket.card.packages")}</span>
             </div>
             <Show when={props.bucket.last_updated}>
               <div class="text-xs text-base-content/50">
-                Updated {formatDate(props.bucket.last_updated)}
+                {t("bucket.card.updated", { date: formatDate(props.bucket.last_updated) })}
               </div>
             </Show>
           </div>
@@ -50,7 +51,7 @@ function BucketCard(props: BucketCardProps) {
         class="bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300"
       >
         <Show when={props.bucket.git_url}>
-          <div 
+          <div
             class="text-xs text-base-content/40 mt-2 truncate font-mono bg-base-100 px-2 py-1 rounded cursor-pointer hover:underline"
             onClick={() => openPath(props.bucket.git_url!)}
             title={props.bucket.git_url}
@@ -58,26 +59,26 @@ function BucketCard(props: BucketCardProps) {
             {props.bucket.git_url}
           </div>
         </Show>
-        
+
         {/* Update result message */}
         <Show when={props.updateResult}>
           <div class="mt-2 text-xs p-2 rounded bg-base-100 border">
             {props.updateResult}
           </div>
         </Show>
-        
+
         {/* Action buttons */}
         <div class="flex gap-2 mt-3">
-          <button 
+          <button
             class="btn btn-primary btn-sm flex-1 gap-2"
             onClick={() => props.onViewBucket(props.bucket)}
           >
             <Eye class="w-4 h-4" />
-            View
+            {t("bucket.card.view")}
           </button>
-          
+
           <Show when={props.bucket.is_git_repo && props.onUpdateBucket}>
-            <button 
+            <button
               class="btn btn-secondary btn-sm gap-2"
               onClick={(e) => {
                 e.stopPropagation();
@@ -90,7 +91,7 @@ function BucketCard(props: BucketCardProps) {
               >
                 <span class="loading loading-spinner loading-xs"></span>
               </Show>
-              {props.isUpdating ? "Updating..." : "Update"}
+              {props.isUpdating ? t("bucket.card.updating") : t("bucket.card.update")}
             </button>
           </Show>
         </div>

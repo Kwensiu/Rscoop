@@ -1,6 +1,7 @@
 import { Sun, Moon } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 function ThemeSettings() {
     const { settings, setTheme } = settingsStore;
@@ -11,12 +12,12 @@ function ThemeSettings() {
 
     return (
         <Card
-            title="Appearance"
+            title={t("settings.theme.title")}
             icon={settings.theme === 'dark' ? Moon : Sun}
-            description="Switch between dark and light themes."
+            description={t("settings.theme.description")}
             headerAction={
                 <label class="label cursor-pointer">
-                    <span class="label-text mr-4">{settings.theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+                    <span class="label-text mr-4">{settings.theme === 'dark' ? t("settings.theme.switch_to_light") : t("settings.theme.switch_to_dark")}</span>
                     <input
                         type="checkbox"
                         class="toggle toggle-warning"

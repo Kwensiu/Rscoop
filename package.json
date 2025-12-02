@@ -1,6 +1,6 @@
 {
   "name": "rscoop",
-  "version": "1.4.562",
+  "version": "1.4.652",
   "description": "",
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@solid-primitives/i18n": "^2.2.1",
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-dialog": "^2.4.2",
     "@tauri-apps/plugin-log": "^2.7.1",

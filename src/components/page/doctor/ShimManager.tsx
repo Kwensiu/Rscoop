@@ -4,6 +4,7 @@ import { RefreshCw, TriangleAlert, Inbox, Link, EyeOff, Plus, BookText, Folder, 
 import ShimDetailsModal from "./ShimDetailsModal";
 import AddShimModal from "./AddShimModal";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 export interface Shim {
     name: string;
@@ -103,7 +104,7 @@ function ShimManager(props: ShimManagerProps) {
 
     return (
         <Card
-            title="Shim Manager"
+            title={t('doctor.shim_manager.title')}
             icon={Layers2}
             headerAction={
                 <div class="flex items-center gap-2">
@@ -112,14 +113,14 @@ function ShimManager(props: ShimManagerProps) {
                         onClick={() => setIsAddModalOpen(true)}
                         disabled={isLoading() || isProcessing()}
                     >
-                        <Plus class="w-4 h-4" /> Add Shim
+                        <Plus class="w-4 h-4" /> {t('doctor.shim_manager.add_shim')}
                     </button>
                     <div class="divider divider-horizontal m-1" />
                     <Show when={props.onOpenDirectory}>
                         <button
                             class="btn btn-ghost btn-sm"
                             onClick={props.onOpenDirectory}
-                            title="Open Shim Directory"
+                            title={t('doctor.shim_manager.open_shim_directory')}
                         >
                             <Folder class="w-5 h-5" />
                         </button>
@@ -137,7 +138,7 @@ function ShimManager(props: ShimManagerProps) {
         >
             <input
                 type="text"
-                placeholder="Filter by name or source..."
+                placeholder={t('doctor.shim_manager.filter_placeholder')}
                 class="input input-bordered w-full mt-2 mb-4"
                 value={filter()}
                 onInput={(e) => setFilter(e.currentTarget.value)}
@@ -154,7 +155,7 @@ function ShimManager(props: ShimManagerProps) {
                 <Show when={!isLoading() && allShims().length === 0 && !error()}>
                     <div class="text-center p-8">
                         <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
-                        <p class="mt-4 text-lg font-semibold">No Shims Found</p>
+                        <p class="mt-4 text-lg font-semibold">{t('doctor.shim_manager.no_shims_found')}</p>
                     </div>
                 </Show>
 
@@ -164,9 +165,9 @@ function ShimManager(props: ShimManagerProps) {
                         <table class="table table-sm">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Source Package</th>
-                                    <th>Attributes</th>
+                                    <th>{t('doctor.shim_manager.name')}</th>
+                                    <th>{t('doctor.shim_manager.source_package')}</th>
+                                    <th>{t('doctor.shim_manager.attributes')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -183,10 +184,10 @@ function ShimManager(props: ShimManagerProps) {
                                             <td>
                                                 <div class="flex gap-2">
                                                     <Show when={item.isHidden}>
-                                                        <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3" />Hidden</div>
+                                                        <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3" />{t('doctor.shim_manager.hidden')}</div>
                                                     </Show>
                                                     <Show when={item.args}>
-                                                        <div class="badge badge-accent gap-1"><BookText class="w-3 h-3" />Args</div>
+                                                        <div class="badge badge-accent gap-1"><BookText class="w-3 h-3" />{t('doctor.shim_manager.args')}</div>
                                                     </Show>
                                                 </div>
                                             </td>

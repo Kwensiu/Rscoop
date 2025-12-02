@@ -5,6 +5,7 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import pkgJson from "../../../../package.json";
+import { t } from "../../../i18n";
 
 export interface AboutSectionRef {
   checkForUpdates: (manual: boolean) => Promise<void>;
@@ -27,8 +28,8 @@ export default function AboutSection(props: AboutSectionProps) {
       // Don't check for updates if installed via Scoop
       if (props.isScoopInstalled) {
         if (manual) {
-          await message("This app was installed via Scoop. Please use Scoop to update this application instead.", {
-            title: "Updates via Scoop",
+          await message(t("settings.about.update_via_scoop"), {
+            title: t("settings.about.updates_via_scoop"),
             kind: "info"
           });
         }
@@ -47,12 +48,12 @@ export default function AboutSection(props: AboutSectionProps) {
         // Only show dialog if user manually clicked "Check for updates"
         if (manual) {
           const shouldInstall = await ask(
-            `Update to ${update.version} is available!\n\nRelease notes: ${update.body || 'No release notes provided'}`,
+            t("settings.about.update_available_dialog", { version: update.version, body: update.body || 'No release notes provided' }),
             {
-              title: "Update Available",
+              title: t("settings.about.update_available"),
               kind: "info",
-              okLabel: "Install Now",
-              cancelLabel: "Later"
+              okLabel: t("buttons.install"),
+              cancelLabel: t("buttons.cancel")
             }
           );
 
@@ -63,8 +64,8 @@ export default function AboutSection(props: AboutSectionProps) {
       } else {
         setUpdateStatus('idle');
         if (manual) {
-          await message("You're already using the latest version!", {
-            title: "No Updates Available",
+          await message(t("settings.about.latest_version"), {
+            title: t("settings.about.no_updates_available"),
             kind: "info"
           });
         }
@@ -105,11 +106,11 @@ export default function AboutSection(props: AboutSectionProps) {
 
       // Restart the app after successful installation
       await ask(
-        "Update has been installed successfully. The application needs to restart to apply the changes.",
+        t("settings.about.update_complete"),
         {
-          title: "Update Complete",
+          title: t("buttons.confirm"),
           kind: "info",
-          okLabel: "Restart Now"
+          okLabel: t("settings.about.restart_now")
         }
       );
 
@@ -128,17 +129,17 @@ export default function AboutSection(props: AboutSectionProps) {
       {/* Hero Section */}
       <div class="bg-base-300 p-8 flex flex-col items-center text-center space-y-4">
         <div>
-          <h2 class="text-3xl font-bold tracking-tight">Rscoop (Fork)</h2>
+          <h2 class="text-3xl font-bold tracking-tight">Rscoop-Fork</h2>
           <p class="text-base-content/60 font-medium">v{pkgJson.version}</p>
         </div>
         <p class="max-w-md  leading-relaxed">
-          A modern, powerful, and fast GUI for Scoop package manager on Windows.
+          {t("settings.about.description")}
         </p>
         <p class="text-sm text-base-content/60 mt-2">
-          You are Using a customized version of Rscoop, maintained by Kwensiu.
+          {t("settings.about.customized_version")}
         </p>
         <p class="text-sm text-base-content/60">
-          Please report any issues to my fork repository.
+          {t("settings.about.please_report_issues")}
         </p>
 
       </div>
@@ -150,27 +151,27 @@ export default function AboutSection(props: AboutSectionProps) {
           <div class="flex items-center justify-between mb-4">
             <div class="font-semibold flex items-center gap-2">
               <RefreshCw class="w-4 h-4 text-base-content/70" />
-              Update Status
+              {t("settings.about.update_status")}
             </div>
             {props.isScoopInstalled && (
-              <span class="badge badge-sm badge-info badge-outline">Managed by Scoop</span>
+              <span class="badge badge-sm badge-info badge-outline">{t("settings.about.managed_by_scoop")}</span>
             )}
           </div>
 
           {props.isScoopInstalled ? (
             <div class="alert alert-info text-sm shadow-sm">
-              <span>Use <code>scoop update rscoop</code> in your terminal to update.</span>
+              <span>{t("settings.about.scoop_update_instruction", { code: "scoop update rscoop" })}</span>
             </div>
           ) : (
             <div class="space-y-4">
               {updateStatus() === 'idle' && (
                 <div class="flex items-center justify-between">
-                  <span class="text-sm text-base-content/70">Check for the latest version</span>
+                  <span class="text-sm text-base-content/70">{t("settings.about.check_now")}</span>
                   <button
                     class="btn btn-sm btn-primary"
                     onClick={() => checkForUpdates(true)}
                   >
-                    Check Now
+                    {t("settings.about.check_now")}
                   </button>
                 </div>
               )}
@@ -178,7 +179,7 @@ export default function AboutSection(props: AboutSectionProps) {
               {updateStatus() === 'checking' && (
                 <div class="flex items-center justify-center py-2 text-base-content/70">
                   <span class="loading loading-spinner loading-sm mr-3"></span>
-                  Checking for updates...
+                  {t("settings.about.checking_for_updates")}
                 </div>
               )}
 
@@ -187,14 +188,14 @@ export default function AboutSection(props: AboutSectionProps) {
                   <div class="alert alert-success shadow-sm">
                     <Download class="w-5 h-5" />
                     <div>
-                      <h3 class="font-bold">Update Available!</h3>
-                      <div class="text-xs">Version {updateInfo()?.version} is ready to install.</div>
+                      <h3 class="font-bold">{t("settings.about.update_available")}</h3>
+                      <div class="text-xs">{t("settings.about.update_ready", { version: updateInfo()?.version })}</div>
                     </div>
-                    <button class="btn btn-sm" onClick={installAvailableUpdate}>Install</button>
+                    <button class="btn btn-sm" onClick={installAvailableUpdate}>{t("buttons.install")}</button>
                   </div>
                   <Show when={updateInfo()?.body}>
                     <div class="bg-base-200 rounded-lg p-3 text-xs max-h-32 overflow-y-auto border border-base-content/5">
-                      <div class="font-bold mb-1 opacity-70">Release Notes:</div>
+                      <div class="font-bold mb-1 opacity-70">{t("settings.about.release_notes")}</div>
                       <div class="whitespace-pre-wrap opacity-80">{updateInfo()?.body}</div>
                     </div>
                   </Show>
@@ -204,7 +205,7 @@ export default function AboutSection(props: AboutSectionProps) {
               {updateStatus() === 'downloading' && (
                 <div class="space-y-2">
                   <div class="flex justify-between text-xs font-medium">
-                    <span>Downloading update...</span>
+                    <span>{t("settings.about.downloading_update")}</span>
                     <span>{downloadProgress().total
                       ? `${Math.round((downloadProgress().downloaded / (downloadProgress().total || 1)) * 100)}%`
                       : '...'}</span>
@@ -220,17 +221,17 @@ export default function AboutSection(props: AboutSectionProps) {
               {updateStatus() === 'installing' && (
                 <div class="flex items-center justify-center py-2 text-success font-medium">
                   <span class="loading loading-spinner loading-sm mr-3"></span>
-                  Installing update...
+                  {t("settings.about.installing_update")}
                 </div>
               )}
 
               {updateStatus() === 'error' && (
                 <div class="alert alert-error shadow-sm">
                   <div class="flex-1">
-                    <div class="font-bold text-xs">Update Failed</div>
+                    <div class="font-bold text-xs">{t("settings.about.update_failed")}</div>
                     <div class="text-xs opacity-80">{updateError()}</div>
                   </div>
-                  <button class="btn btn-xs btn-outline" onClick={() => checkForUpdates(true)}>Retry</button>
+                  <button class="btn btn-xs btn-outline" onClick={() => checkForUpdates(true)}>{t("settings.about.retry")}</button>
                 </div>
               )}
             </div>
@@ -244,14 +245,14 @@ export default function AboutSection(props: AboutSectionProps) {
             onClick={() => openUrl('https://github.com/Kwensiu/Rscoop/').catch(console.error)}
           >
             <Github class="w-5 h-5" />
-            My Fork (Kwensiu)
+            {t("settings.about.my_fork")}
           </button>
           <button
             class="btn btn-outline hover:bg-base-content hover:text-base-100 transition-all"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
             <Github class="w-5 h-5" />
-            Upstream
+            {t("settings.about.upstream")}
           </button>
 
           <button
@@ -259,7 +260,7 @@ export default function AboutSection(props: AboutSectionProps) {
             onClick={() => openUrl('https://amarbego.github.io/Rscoop/').catch(console.error)}
           >
             <BookOpen class="w-5 h-5" />
-            Docs
+            {t("settings.about.docs")}
           </button>
 
         </div>

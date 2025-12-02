@@ -131,13 +131,13 @@
   --noise: 0;
 }
 
-/* 移除输入框的默认焦点边框 */
+/* Remove focus styles */
 input:focus {
   outline: none;
   box-shadow: none;
 }
 
-/* 如果使用了Tailwind的focus样式，也需要覆盖 */
+/* Also remove focus styles for inputs with class "focus:..." */
 input[class*="focus:"] {
   --tw-ring-color: transparent;
 }
@@ -161,8 +161,8 @@ html {
   align-items: center;
   justify-content: center;
   min-width: 2.5rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: auto;
 }
@@ -176,6 +176,8 @@ html {
   max-width: 100px;
   transform: translateX(0);
   margin-left: 0.5rem;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
 @media (max-width: 639px) {
@@ -184,6 +186,26 @@ html {
     max-width: 0;
     transform: translateX(-10px);
     margin-left: 0;
+    flex-shrink: 1;
+    width: 0;
+    display: inline-block;
+  }
+  
+  /* Center the button when text is hidden */
+  .btn.btn-sm.btn-ghost {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  /* Make the button full width when text is hidden */
+  .btn.btn-sm.btn-ghost .flex.items-center.justify-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
   }
 }
 /* Custom close button outline style */

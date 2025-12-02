@@ -2,16 +2,17 @@ import { Home } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
 import { View } from "../../../types/scoop";
+import { t } from "../../../i18n";
 
 function DefaultLaunchPageSettings() {
     const { settings, setDefaultLaunchPage } = settingsStore;
 
     const pages: { value: View; label: string }[] = [
-        { value: "search", label: "Search" },
-        { value: "bucket", label: "Buckets" },
-        { value: "installed", label: "Installed" },
-        { value: "doctor", label: "Doctor" },
-        { value: "settings", label: "Settings" },
+        { value: "search", label: t("settings.default_launch_page.search") },
+        { value: "bucket", label: t("settings.default_launch_page.buckets") },
+        { value: "installed", label: t("settings.default_launch_page.installed") },
+        { value: "doctor", label: t("settings.default_launch_page.doctor") },
+        { value: "settings", label: t("settings.default_launch_page.settings") },
     ];
 
     const handlePageChange = (e: Event) => {
@@ -21,9 +22,9 @@ function DefaultLaunchPageSettings() {
 
     return (
         <Card
-            title="Default Launch Page"
+            title={t("settings.default_launch_page.title")}
             icon={Home}
-            description="Choose which page to display when the application starts."
+            description={t("settings.default_launch_page.description")}
             headerAction={
                 <label class="label cursor-pointer gap-3">
                     <select

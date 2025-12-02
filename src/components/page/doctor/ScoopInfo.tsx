@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Settings, Folder, Edit } from "lucide-solid";
 import Card from "../../common/Card";
 import Modal from "../../common/Modal";
+import { t } from "../../../i18n";
 
 interface ScoopConfig {
     [key: string]: any;
@@ -86,7 +87,7 @@ function ScoopInfo(props: ScoopInfoProps) {
     return (
         <>
             <Card
-                title="Scoop Configuration"
+                title={t('doctor.scoop_info.title')}
                 icon={Settings}
                 headerAction={
                     <div class="flex items-center gap-2">
@@ -94,7 +95,7 @@ function ScoopInfo(props: ScoopInfoProps) {
                             <button
                                 class="btn btn-ghost btn-sm"
                                 onClick={openEditModal}
-                                title="Edit Configuration"
+                                title={t('doctor.scoop_info.edit_configuration')}
                             >
                                 <Edit class="w-5 h-5" />
                             </button>
@@ -102,7 +103,7 @@ function ScoopInfo(props: ScoopInfoProps) {
                             <button
                                 class="btn btn-ghost btn-sm"
                                 onClick={props.onOpenDirectory}
-                                title="Open Scoop Directory"
+                                title={t('doctor.scoop_info.open_scoop_directory')}
                             >
                                 <Folder class="w-5 h-5" />
                             </button>
@@ -143,7 +144,7 @@ function ScoopInfo(props: ScoopInfoProps) {
                                     </For>
                                 </div>
                             ) : (
-                                <p class="ml-2">No configuration found</p>
+                                <p class="ml-2">{t('doctor.scoop_info.no_configuration_found')}</p>
                             )}
                         </div>
                     </div>
@@ -153,21 +154,21 @@ function ScoopInfo(props: ScoopInfoProps) {
             <Modal
                 isOpen={isEditModalOpen()}
                 onClose={closeEditModal}
-                title="Edit Scoop Configuration"
+                title={t('doctor.scoop_info.edit_scoop_configuration')}
                 footer={
                     <div class="flex justify-end gap-2">
                         <button
                             class="btn btn-error"
                             onClick={closeEditModal}
                         >
-                            Cancel
+                            {t('doctor.scoop_info.cancel')}
                         </button>
                         <button
                             class="btn btn-primary"
                             onClick={saveConfig}
                             disabled={isSaving()}
                         >
-                            {isSaving() ? "Saving..." : "Save"}
+                            {isSaving() ? t('doctor.scoop_info.saving') : t('doctor.scoop_info.save')}
                         </button>
                     </div>
                 }

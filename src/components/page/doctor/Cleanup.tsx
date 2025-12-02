@@ -1,5 +1,6 @@
 import { Trash2, Archive, BrushCleaning } from "lucide-solid";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 interface CleanupProps {
     onCleanupApps: () => void;
@@ -9,18 +10,18 @@ interface CleanupProps {
 function Cleanup(props: CleanupProps) {
     return (
         <Card
-            title="System Cleanup"
+            title={t('doctor.cleanup.title')}
             icon={BrushCleaning}
-            description="Free up disk space by removing old package versions and outdated download caches (this will ignore auto-cleanup constraints)."
+            description={t('doctor.cleanup.description')}
         >
             <div class="flex gap-2 mt-2">
                 <button class="btn btn-primary" onClick={props.onCleanupApps}>
                     <Trash2 class="w-4 h-4 mr-2" />
-                    Cleanup Old Versions
+                    {t('doctor.cleanup.cleanup_old_versions')}
                 </button>
                 <button class="btn btn-secondary" onClick={props.onCleanupCache}>
                     <Archive class="w-4 h-4 mr-2" />
-                    Cleanup Outdated Cache
+                    {t('doctor.cleanup.cleanup_outdated_cache')}
                 </button>
             </div>
         </Card>

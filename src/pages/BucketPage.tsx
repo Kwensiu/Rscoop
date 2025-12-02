@@ -8,6 +8,7 @@ import BucketSearch from "../components/page/buckets/BucketSearch";
 import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
 import { SearchableBucket } from "../hooks/useBucketSearch";
+import { t } from "../i18n";
 
 interface BucketUpdateResult {
   success: boolean;
@@ -348,9 +349,9 @@ function BucketPage() {
         <div class={`mb-6 relative transition-all duration-300 ${isSearchActive() ? 'mb-32' : 'mb-6'}`}>
           <div class="flex items-center justify-between">
             <div class={`transition-all duration-300 ${isSearchActive() ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-              <h1 class="text-3xl font-bold mb-2">Buckets</h1>
+              <h1 class="text-3xl font-bold mb-2">{t("app.buckets")}</h1>
               <p class="text-base-content/70">
-                Manage Scoop buckets - repositories containing package manifests
+                {t("bucket.page.description")}
               </p>
             </div>
             

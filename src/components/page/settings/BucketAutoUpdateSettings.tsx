@@ -3,12 +3,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { RefreshCcw } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
+import { t } from "../../../i18n";
 
 // Predefined new intervals per requirement plus backward compatibility display
 const INTERVAL_OPTIONS: { label: string; value: string; description: string }[] = [
-    { label: "Off", value: "off", description: "Disable scheduled bucket updates" },
-    { label: "Every 24 Hours", value: "24h", description: "Run once per day" },
-    { label: "Every Week", value: "7d", description: "Run once every 7 days" },
+    { label: "settings.bucket_auto_update.off", value: "off", description: "settings.bucket_auto_update.off_description" },
+    { label: "settings.bucket_auto_update.every_24_hours", value: "24h", description: "settings.bucket_auto_update.every_24_hours_description" },
+    { label: "settings.bucket_auto_update.every_week", value: "7d", description: "settings.bucket_auto_update.every_week_description" },
 ];
 
 export default function BucketAutoUpdateSettings() {
@@ -44,7 +45,7 @@ export default function BucketAutoUpdateSettings() {
             setBucketSettings({ autoUpdateInterval: newValue });
             await invoke("set_config_value", { key: "buckets.autoUpdateInterval", value: newValue });
         } catch (e) {
-            setError("Failed to save auto-update interval.");
+            setError(t("settings.bucket_auto_update.error"));
         } finally {
             setSaving(false);
         }
@@ -60,9 +61,9 @@ export default function BucketAutoUpdateSettings() {
 
     return (
         <Card
-            title="Bucket Auto Update"
+            title={t("settings.bucket_auto_update.title")}
             icon={RefreshCcw}
-            description="Rscoop will automatically run updates on all installed buckets to keep manifests fresh."
+            description={t("settings.bucket_auto_update.description")}
             headerAction={
                 <div class="flex items-center gap-3">
                     <ActiveIntervalDisplay value={settings.buckets.autoUpdateInterval} />
@@ -74,8 +75,8 @@ export default function BucketAutoUpdateSettings() {
                 {INTERVAL_OPTIONS.map(opt => (
                     <label class="flex items-center justify-between bg-base-300/60 rounded-md px-3 py-2 cursor-pointer border border-base-content/50 hover:border-base-content/20 transition-colors">
                         <div class="flex flex-col">
-                            <span class="text-sm font-medium">{opt.label}</span>
-                            <span class="text-[10px] opacity-70">{opt.description}</span>
+                            <span class="text-sm font-medium">{t(opt.label)}</span>
+                            <span class="text-[10px] opacity-70">{t(opt.description)}</span>
                         </div>
                         <input
                             type="radio"
@@ -92,8 +93,8 @@ export default function BucketAutoUpdateSettings() {
 
             {/* Custom interval */}
             <div class="mt-4 bg-base-300/40 rounded-md p-3 border border-dashed border-base-content/50">
-                <span class="text-xs font-semibold uppercase tracking-wide opacity-90">Custom Interval</span>
-                <p class="text-[11px] mt-1 mb-2 opacity-70">Define a custom schedule (minutes, hours, days, weeks).</p>
+                <span class="text-xs font-semibold uppercase tracking-wide opacity-90">{t("settings.bucket_auto_update.custom_interval")}</span>
+                <p class="text-[11px] mt-1 mb-2 opacity-70">{t("settings.bucket_auto_update.custom_interval_description")}</p>
                 <CustomIntervalEditor
                     currentValue={settings.buckets.autoUpdateInterval}
                     onPersist={persistInterval}
@@ -108,9 +109,9 @@ export default function BucketAutoUpdateSettings() {
                             disabled={saving() || loading()}
                             onClick={() => persistInterval("custom:10")}
                         >
-                            Debug: 10s Interval
+                            {t("settings.bucket_auto_update.debug")}
                         </button>
-                        <span class="text-[10px] opacity-60">Runs scheduler every 10 seconds (debug only)</span>
+                        <span class="text-[10px] opacity-60">{t("settings.bucket_auto_update.debug_description")}</span>
                     </div>
                 </Show>
             </div>
@@ -119,8 +120,8 @@ export default function BucketAutoUpdateSettings() {
                 <div class="divider my-4"></div>
                 <div class="flex items-center justify-between">
                     <div class="flex flex-col">
-                        <span class="text-sm font-medium">Auto Update Packages</span>
-                        <span class="text-[11px] text-base-content/60">Run full package update after bucket refresh</span>
+                        <span class="text-sm font-medium">{t("settings.bucket_auto_update.auto_update_packages")}</span>
+                        <span class="text-[11px] text-base-content/60">{t("settings.bucket_auto_update.auto_update_packages_description")}</span>
                     </div>
                     <label class="label cursor-pointer">
                         <input
@@ -135,7 +136,7 @@ export default function BucketAutoUpdateSettings() {
                     </label>
                 </div>
                 <div class="mt-2 text-[11px] text-base-content/50">
-                    When enabled, after each scheduled bucket update Rscoop will update all installed packages.
+                    {t("settings.bucket_auto_update.auto_update_packages_note")}
                 </div>
             </Show>
 

@@ -7,6 +7,8 @@ import PackageListView from "../components/page/installed/PackageListView";
 import PackageGridView from "../components/page/installed/PackageGridView";
 import { View } from "../types/scoop";
 import { createStoredSignal } from "../hooks/createStoredSignal";
+import FloatingConfirmationPanel from "../components/FloatingConfirmationPanel";
+import { t } from "../i18n";
 
 interface InstalledPageProps {
   onNavigate?: (view: View) => void;
@@ -113,32 +115,32 @@ function InstalledPage(props: InstalledPageProps) {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
             </svg>
           </div>
-          <h3 class="text-2xl font-bold mb-2">No packages found</h3>
+          <h3 class="text-2xl font-bold mb-2">{t('no_packages_found.title')}</h3>
           <p class="text-lg text-base-content/70 mb-6 max-w-md">
             <Show when={searchQuery() || selectedBucket() !== 'all'}>
-              No installed packages match your current filter criteria.
+              {t('no_packages_found.no_match_criteria')}
             </Show>
             <Show when={!searchQuery() && selectedBucket() === 'all'}>
-              You don't have any packages installed yet.
+              {t('no_packages_found.no_installed_yet')}
             </Show>
           </p>
           <Show when={searchQuery() || selectedBucket() !== 'all'}>
-            <button 
+            <button
               class="btn btn-primary mb-4"
               onClick={() => {
                 setSearchQuery("");
                 setSelectedBucket("all");
               }}
             >
-              Clear Filters
+              {t('no_packages_found.clear_filters')}
             </button>
           </Show>
           <Show when={!searchQuery() && selectedBucket() === 'all'}>
-            <button 
+            <button
               class="btn btn-primary"
               onClick={() => props.onNavigate?.("search")}
             >
-              Browse Packages
+              {t('no_packages_found.browse_packages')}
             </button>
           </Show>
         </div>
@@ -180,40 +182,22 @@ function InstalledPage(props: InstalledPageProps) {
       </Show>
 
       <Show when={changeBucketModalOpen()}>
-        <div class="fixed inset-0 flex items-center justify-center z-21 p-2">
-          <div 
-            class="absolute inset-0 transition-all duration-300 ease-out"
-            classList={{
-              "opacity-0": !changeBucketModalOpen(),
-              "opacity-100": changeBucketModalOpen(),
-            }}
-            style="background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(2px);"
-            onClick={handleChangeBucketCancel}
-          ></div>
-          <div 
-            class="relative bg-base-200 rounded-xl shadow-2xl border border-base-300 w-full max-w-lg sm:max-w-lg md:max-w-md overflow-hidden transition-all duration-300 ease-out"
-            classList={{
-              "scale-90 opacity-0 translate-y-4": !changeBucketModalOpen(),
-              "scale-100 opacity-100 translate-y-0": changeBucketModalOpen(),
-            }}
-          >
-            <div class="flex justify-between items-center p-4 border-b border-base-300">
-              <h3 class="font-bold text-lg">Select new bucket for {currentPackageForBucketChange()?.name}:</h3>
-              <button 
-                class="btn btn-sm btn-circle btn-ghost hover:bg-base-300 transition-colors duration-200"
-                onClick={handleChangeBucketCancel}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div class="p-6">
+        <FloatingConfirmationPanel
+          isOpen={changeBucketModalOpen()}
+          title={t('package_info.change_bucket_for', { name: currentPackageForBucketChange()?.name })}
+          onConfirm={async () => {
+            await handleChangeBucketConfirm();
+          }}
+          onCancel={handleChangeBucketCancel}
+        >
+          <div class="space-y-4">
+            <div>
               <select
                 value={newBucketName()}
                 onInput={(e) => setNewBucketName(e.currentTarget.value)}
                 class="select select-bordered w-full max-w-xs"
               >
-                <option value="" disabled>Select a bucket</option>
+                <option value="" disabled>{t('package_info.bucket')}</option>
                 <For each={buckets()}>
                   {(bucket) => (
                     <option value={bucket.name}>{bucket.name}</option>
@@ -221,29 +205,16 @@ function InstalledPage(props: InstalledPageProps) {
                 </For>
               </select>
               <div class="text-sm text-base-content/70 mt-2">
-                Current bucket: {currentPackageForBucketChange()?.source}
-              </div>
-              <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">
-                <p class="text-xs text-info-content/85">
-                  <strong class="text-yellow-800 dark:text-yellow-200">Warning:</strong> Ensure the software package is present in the target repository.
-                </p>
-              </div>
-              <div class="flex justify-end gap-2 mt-4">
-                <button class="btn btn-ghost" onClick={handleChangeBucketCancel}>
-                  Cancel
-                </button>
-                <button 
-                  class="btn btn-primary" 
-                  onClick={async () => {
-                    await handleChangeBucketConfirm();
-                  }}
-                >
-                  Confirm
-                </button>
+                {t('package_info.current')}: {currentPackageForBucketChange()?.source}
               </div>
             </div>
+            <div class="p-3 bg-info/10 rounded-lg border border-info/20">
+              <p class="text-xs text-info-content/85">
+                <strong class="text-yellow-800 dark:text-yellow-200">{t('package_info.warning')}:</strong> {t('package_info.ensure_software_present')}
+              </p>
+            </div>
           </div>
-        </div>
+        </FloatingConfirmationPanel>
       </Show>
 
       <PackageInfoModal
