@@ -111,7 +111,7 @@ const SwitchVersionButton = (props: {
 function PackageListView(props: PackageListViewProps) {
   return (
     <div class="overflow-x-auto bg-base-300 rounded-xl shadow-xl">
-      <table class="table z-[10]">
+      <table class="table">
         <thead>
           <tr>
             <SortableHeader key="name" title={t("installed.list.name")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />

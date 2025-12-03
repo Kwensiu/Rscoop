@@ -62,7 +62,7 @@ function InstalledPageHeader(props: InstalledHeaderProps) {
   };
 
   return (
-    <div class="flex justify-between items-center mb-6 h-10">
+    <div class="flex justify-between items-center">
       <Show
         when={!isSearchOpen()}
         fallback={
@@ -87,8 +87,8 @@ function InstalledPageHeader(props: InstalledHeaderProps) {
           </div>
         }
       >
-        <h2 class="text-3xl font-bold tracking-tight">{t("installed.header.title")}</h2>
-        <div class="flex items-center gap-2">
+        <h2 class="text-3xl font-bold mb-7">{t("installed.header.title")}</h2>
+        <div class="flex items-center gap-2 mb-6">
           {/* Refresh Button */}
           <button
             class="btn btn-ghost btn-circle tooltip tooltip-bottom"
