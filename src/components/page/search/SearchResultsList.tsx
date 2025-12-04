@@ -53,18 +53,18 @@ function SearchResultsList(props: SearchResultsListProps) {
                         >
                             <div class="card-body">
                                 <div class="flex justify-between items-start">
-                                    <div class="flex-grow">
-                                        <h3 class="card-title">{pkg.name}</h3>
-                                        <p>
+                                    <div class="flex-grow min-w-0">
+                                        <h3 class="card-title truncate">{pkg.name}</h3>
+                                        <p class="truncate">
                                             {t("search.results.from_bucket", { bucket: pkg.source })}
                                         </p>
                                     </div>
                                     <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
-                                        <span class="badge badge-primary badge-soft">
+                                        <span class="badge badge-primary badge-soft whitespace-nowrap">
                                             {pkg.version}
                                         </span>
                                         {pkg.is_installed ? (
-                                            <span class="badge badge-success">Installed</span>
+                                            <span class="badge badge-success whitespace-nowrap">Installed</span>
                                         ) : (
                                             <button
                                                 class="btn btn-sm btn-ghost"
@@ -79,7 +79,7 @@ function SearchResultsList(props: SearchResultsListProps) {
                                     </div>
                                 </div>
                                 <Show when={pkg.info}>
-                                    <p class="text-base-content/70 mt-2 line-clamp-2">
+                                    <p class="text-base-content/70 mt-2 line-clamp-2 overflow-hidden">
                                         {pkg.info}
                                     </p>
                                 </Show>

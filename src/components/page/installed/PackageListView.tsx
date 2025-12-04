@@ -127,10 +127,10 @@ function PackageListView(props: PackageListViewProps) {
           <For each={props.packages()}>
             {(pkg, index) => (
               <tr data-no-close-search>
-                <td class="max-w-xs">
+                <td class="max-w-xs whitespace-nowrap">
                   <div class="flex items-center gap-2">
                     <button class="btn btn-soft bg-base-400 sm:btn-sm overflow-hidden hover:shadow-md transition-all duration-200" onClick={() => props.onViewInfo(pkg)}>
-                      <div class="truncate font-medium">
+                      <div class="truncate font-medium max-w-[120px]">
                         {pkg.name}
                       </div>
                     </button>
@@ -151,9 +151,9 @@ function PackageListView(props: PackageListViewProps) {
                     </Show>
                   </div>
                 </td>
-                <td>{pkg.version}</td>
-                <td>{pkg.source}</td>
-                <td title={pkg.updated}>{formatIsoDate(pkg.updated)}</td>
+                <td class="whitespace-nowrap">{pkg.version}</td>
+                <td class="whitespace-nowrap">{pkg.source}</td>
+                <td class="whitespace-nowrap" title={pkg.updated}>{formatIsoDate(pkg.updated)}</td>
                 <td class="text-center">
                   <div
                     class="dropdown dropdown-end"

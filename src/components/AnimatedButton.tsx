@@ -1,6 +1,5 @@
 import { createSignal, Show, createEffect, createMemo } from "solid-js";
 import { t, locale } from "../i18n";
-import { Portal } from "solid-js/web";
 
 interface AnimatedButtonProps {
   onClick?: () => void | Promise<void>;

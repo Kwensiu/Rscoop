@@ -141,7 +141,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                     <span class="truncate font-semibold">{bucket.name}</span>
                     <div class="flex items-center gap-1 flex-shrink-0">
                       <Show when={bucket.is_verified}>
-                        <div class="badge badge-info badge-outline badge-sm mr-2">
+                        <div class="badge badge-info badge-outline absolute top-[21px] right-[16px] z-10">
                           <Shield class="w-3 h-3 mr-1" />
                           {t("bucket.search_results.verified")}
                         </div>
