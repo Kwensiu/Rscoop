@@ -13,12 +13,14 @@ on:
 
 permissions:
   contents: write
+  packages: read 
 
 jobs:
   build-and-upload:
     runs-on: windows-latest
     env:
       NODE_VERSION: '20'
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,7 +36,6 @@ jobs:
         with:
           toolchain: stable
 
-      # Cache Rust dependencies and build artifacts
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
@@ -47,11 +48,10 @@ jobs:
       - name: Install project dependencies
         run: npm ci
 
-      # Build the application
       - name: Build & bundle application (Tauri)
         env:
-            TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-            TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri -- build --config src-tauri/tauri.conf.test.json --verbose
 
       - name: Extract metadata (product name & version)
@@ -61,7 +61,7 @@ jobs:
           $cfg = Get-Content src-tauri/tauri.conf.test.json | ConvertFrom-Json
           "version=$($cfg.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "product=$($cfg.productName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
+          
       - name: Compress executable with UPX
         run: upx --best --lzma src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
 
@@ -69,21 +69,25 @@ jobs:
         id: updater
         shell: pwsh
         run: |
-          $exePath = "./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe"
-          $sigPath = "$exePath.sig"
+          $productName = "${{ steps.meta.outputs.product }}"
+          $version = "${{ steps.meta.outputs.version }}"
+          $tag = "test-$version"
           
-          # Create signature files (unsigned for test builds)
+          $installerName = "${productName}_${version}_x64-setup.exe"
+          $installerPath = "./src-tauri/target/release/bundle/nsis/$installerName"
+          
+          $sigPath = "$installerPath.sig"
+          
           $signature = Get-Content $sigPath -Raw
           $date = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
           
-          # Generate update.json for test channel
           $json = @{
-            version = "${{ steps.meta.outputs.version }}"
+            version = "$version"
             pub_date = $date
             platforms = @{
               "windows-x86_64" = @{
                 signature = $signature
-                url = "https://github.com/${{ github.repository }}/releases/download/test-${{ steps.meta.outputs.version }}/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
+                url = "https://github.com/${{ github.repository }}/releases/download/$tag/$installerName"
               }
             }
             notes = "Test update from test branch. Build #${{ github.run_number }}"
@@ -91,8 +95,9 @@ jobs:
           
           Set-Content -Path "./update-test.json" -Value $json
           
-          # Output paths for later steps
-          "exePath=$exePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "installerPath=$installerPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sigPath=$sigPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "exePath=./src-tauri/target/release/$productName.exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Create Test Release with artifacts
         uses: ncipollo/release-action@v1
@@ -117,7 +122,8 @@ jobs:
           draft: false
           prerelease: true
           artifacts: >-
-            ${{ steps.updater.outputs.msiPath }},
+            ${{ steps.updater.outputs.installerPath }},
+            ${{ steps.updater.outputs.sigPath }},
             ${{ steps.updater.outputs.exePath }},
             ./update-test.json
           artifactErrorsFailBuild: true
@@ -125,16 +131,13 @@ jobs:
       - name: Update test update endpoint
         shell: pwsh
         run: |
-          # Update the test update endpoint with the new version info
-          $updateContent = Get-Content -Raw "./update-test.json"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Create or update a file in the repo to serve as the test update endpoint
+          $updateContent = Get-Content -Raw "./update-test.json"
           $updateEndpointPath = "./docs/test-update.json"
           Set-Content -Path $updateEndpointPath -Value $updateContent
           
-          # Commit and push the update endpoint file
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add $updateEndpointPath
           git diff --staged --quiet || git commit -m "Update test endpoint to version ${{ steps.meta.outputs.version }}"
           git push
