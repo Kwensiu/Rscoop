@@ -1,3 +1,5 @@
 node_modules
 dist
 rscoop.json
+.codebuddy
+settings.json
