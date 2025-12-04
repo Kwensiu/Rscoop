@@ -290,11 +290,11 @@ function App() {
 
         // Handle cold start event payload
         const handleColdStartEvent = (payload: boolean) => {
-            info(`Handling cold start event with payload: ${payload}`);
-            console.log(`Handling cold start event with payload: ${payload}`);
-            console.log(`Current state before event: ready=${isReady()}, error=${error()}`);
-            // Only update if not already ready
             if (!isReady() && !error()) {
+                info(`Handling cold start event with payload: ${payload}`);
+                console.log(`Handling cold start event with payload: ${payload}`);
+                console.log(`Current state before event: ready=${isReady()}, error=${error()}`);
+                // Only update if not already ready
                 if (payload) {
                     info("Cold start ready event - triggering installed packages refetch");
                     console.log("Setting ready flag to true");
@@ -332,6 +332,8 @@ function App() {
                     setReadyFlag("false");
                     logError(errorMsg);
                 }
+            } else if (isReady()) {
+                info(`Received cold start event with payload: ${payload} (already ready)`);
             }
         };
 
