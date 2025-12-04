@@ -1,4 +1,4 @@
-import { createSignal, createResource, createEffect } from 'solid-js';
+import { createSignal, createResource, createEffect, createRoot } from 'solid-js';
 import * as i18n from '@solid-primitives/i18n';
 
 export type Locale = 'en' | 'zh';
@@ -229,34 +229,34 @@ const getInitialLocale = (): Locale => {
     return savedLocale as Locale;
   }
   
-  // If no saved locale, detect system language
-  const systemLanguage = navigator.language.toLowerCase();
-  if (systemLanguage.startsWith('zh')) {
-    return 'zh';
-  } else {
-    return 'en';
-  }
+  // If no saved locale, default to English to avoid system language detection
+  return 'en';
 };
 
-const [locale, setLocale] = createSignal<Locale>(getInitialLocale());
+// Wrap reactive elements in createRoot to prevent memory leak warnings
+const { locale, setLocale, dict, t } = createRoot(() => {
+  const [locale, setLocale] = createSignal<Locale>(getInitialLocale());
 
-// Save the current locale to localStorage when it changes
-createEffect(() => {
-  const currentLocale = locale();
-  localStorage.setItem('rscoop-language', currentLocale);
+  // Save the current locale to localStorage when it changes
+  createEffect(() => {
+    const currentLocale = locale();
+    localStorage.setItem('rscoop-language', currentLocale);
+  });
+
+  // Create a resource to load the dictionary for the current locale
+  const [dict] = createResource(locale, async (lang) => {
+    const dictModule = await import(`./locales/${lang}.json`);
+    return i18n.flatten(dictModule.default) as Dict;
+  }, {
+    initialValue: {} as Dict,
+  });
+
+  const t = i18n.translator(dict, i18n.resolveTemplate);
+
+  return { locale, setLocale, dict, t };
 });
 
-// Create a resource to load the dictionary for the current locale
-const [dict] = createResource(locale, async (lang) => {
-  const dictModule = await import(`./locales/${lang}.json`);
-  return i18n.flatten(dictModule.default) as Dict;
-}, {
-  initialValue: {} as Dict,
-});
-
-export const t = i18n.translator(dict, i18n.resolveTemplate);
-
-export { locale, setLocale, dict };
+export { locale, setLocale, dict, t };
 
 export const toggleLanguage = () => {
   const newLocale = locale() === 'zh' ? 'en' : 'zh';
