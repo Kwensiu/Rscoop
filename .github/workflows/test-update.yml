@@ -70,8 +70,8 @@ jobs:
         shell: pwsh
         run: |
           $productName = "${{ steps.meta.outputs.product }}"
-          $version = "${{ steps.meta.outputs.version }}"
-          $tag = "test-$version"
+          $version = "v${{ steps.meta.outputs.version }}"
+          $tag = "v$version"
           
           $installerName = "${productName}_${version}_x64-setup.exe"
           $installerPath = "./src-tauri/target/release/bundle/nsis/$installerName"
@@ -103,8 +103,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: test-${{ steps.meta.outputs.version }}
-          name: Test Build v${{ steps.meta.outputs.version }}
+          tag: v${{ steps.meta.outputs.version }}
+          name: v${{ steps.meta.outputs.version }}
           body: |
             ## Test Build
             
@@ -114,7 +114,7 @@ jobs:
             - Version: ${{ steps.meta.outputs.version }}
             - Branch: test
             - Commit: ${{ github.sha }}
-            - Build #${{ github.run_number }}
+
             
             **Note:** This is a test release and may contain unstable features.
             

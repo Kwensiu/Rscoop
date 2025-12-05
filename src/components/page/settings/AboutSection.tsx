@@ -65,7 +65,9 @@ export default function AboutSection(props: AboutSectionProps) {
         return t("settings.about.timeout_error");
       } else if (error.message.includes('certificate') || error.message.includes('TLS') || error.message.includes('SSL')) {
         return t("settings.about.certificate_error");
-      } else if (error.message.includes('network') || error.message.includes('download')) {
+      } else if (error.message.includes('Could not fetch a valid release JSON')) {
+        return t("settings.about.invalid_json_error");
+      } else if (error.message.includes('download')) {
         return t("settings.about.download_failed");
       } else if (error.message.includes('permission') || error.message.includes('access')) {
         return t("settings.about.permission_error");
@@ -170,6 +172,14 @@ export default function AboutSection(props: AboutSectionProps) {
       const errorMessage = sanitizeErrorMessage(error);
       setUpdateError(errorMessage);
       console.error('Update check error details:', errorMessage);
+      
+      // Show error to user if manually checking
+      if (manual) {
+        await message(errorMessage, {
+          title: t("settings.about.update_failed"),
+          kind: "error"
+        });
+      }
     }
   };
 
