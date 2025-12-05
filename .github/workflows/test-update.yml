@@ -70,7 +70,7 @@ jobs:
         shell: pwsh
         run: |
           $productName = "${{ steps.meta.outputs.product }}"
-          $version = "v${{ steps.meta.outputs.version }}"
+          $version = "${{ steps.meta.outputs.version }}"
           $tag = "v$version"
           
           $installerName = "${productName}_${version}_x64-setup.exe"
