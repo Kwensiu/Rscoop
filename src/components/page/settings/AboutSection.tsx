@@ -1,4 +1,4 @@
-import { Download, RefreshCw, Github, BookOpen, AlertCircle, CheckCircle } from "lucide-solid";
+import { Download, RefreshCw, Github, BookOpen, AlertCircle, CheckCircle, Check } from "lucide-solid";
 import { createSignal, Show, For, createMemo } from "solid-js";
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
@@ -35,8 +35,8 @@ export default function AboutSection(props: AboutSectionProps) {
     } catch (error) {
       console.error("Failed to reload update configuration:", error);
       // Notify user about configuration reload failure
-      await message(t("settings.about.config_reload_failed") || "Failed to reload update configuration", {
-        title: t("settings.about.config_error") || "Configuration Error",
+      await message(t("settings.about.config_reload_failed"), {
+        title: t("settings.about.config_error"),
         kind: "error"
       });
     }
@@ -44,12 +44,12 @@ export default function AboutSection(props: AboutSectionProps) {
     // Show a message that restart is required for changes to take effect
     await message(
       channel === 'test'
-        ? (t("update_channel.test_restart_required") || "You have switched to the test update channel. Please restart the application to apply changes.")
-        : (t("update_channel.stable_restart_required") || "You have switched to the stable update channel. Please restart the application to apply changes."),
+        ? (t("update_channel.test_restart_required"))
+        : (t("update_channel.stable_restart_required")),
       {
         title: channel === 'test'
-          ? (t("settings.update_channel.test_channel") || "Test Channel")
-          : (t("settings.update_channel.stable_channel") || "Stable Channel"),
+          ? (t("settings.update_channel.test_channel"))
+          : (t("settings.update_channel.stable_channel")),
         kind: "info"
       }
     );
@@ -60,19 +60,19 @@ export default function AboutSection(props: AboutSectionProps) {
     if (error instanceof Error) {
       // Specific error handling with translated messages
       if (error.message.includes('network')) {
-        return t("settings.about.network_error") || "Network error occurred during update check";
+        return t("settings.about.network_error");
       } else if (error.message.includes('timeout')) {
-        return t("settings.about.timeout_error") || "Update check timed out";
+        return t("settings.about.timeout_error");
       } else if (error.message.includes('certificate') || error.message.includes('TLS') || error.message.includes('SSL')) {
-        return t("settings.about.certificate_error") || "Certificate error occurred during update check";
+        return t("settings.about.certificate_error");
       } else if (error.message.includes('network') || error.message.includes('download')) {
-        return t("settings.about.download_failed") || "Failed to download update";
+        return t("settings.about.download_failed");
       } else if (error.message.includes('permission') || error.message.includes('access')) {
-        return t("settings.about.permission_error") || "Permission denied during update process";
+        return t("settings.about.permission_error");
       } else if (error.message.includes('disk') || error.message.includes('space')) {
-        return t("settings.about.insufficient_space") || "Insufficient disk space for update";
+        return t("settings.about.insufficient_space");
       } else if (error.message.includes('integrity') || error.message.includes('verification')) {
-        return t("settings.about.integrity_check_failed") || "Update integrity check failed";
+        return t("settings.about.integrity_check_failed");
       }
       
       // Return the actual error message, but limit its length for security
@@ -130,21 +130,21 @@ export default function AboutSection(props: AboutSectionProps) {
 
         // Only show dialog if user manually clicked "Check for updates"
         if (manual) {
-          const versionText = update.version || 'unknown';
-          const bodyText = update.body || t("settings.about.no_release_notes") || "No release notes provided";
+          const versionText = update.version;
+          const bodyText = update.body || t("settings.about.no_release_notes");
           
           const messageContent = t("settings.about.update_available_dialog", { 
             version: versionText, 
             body: bodyText
-          }) || `Update to ${versionText} is available!\n\nRelease notes: ${bodyText}`;
+          });
 
           const shouldInstall = await ask(
             messageContent,
             {
-              title: t("settings.about.update_available") || "Update Available",
+              title: t("settings.about.update_available"),
               kind: "info",
-              okLabel: t("buttons.install") || "Install Now",
-              cancelLabel: t("buttons.cancel") || "Later"
+              okLabel: t("buttons.install"),
+              cancelLabel: t("buttons.cancel")
             }
           );
 
@@ -155,9 +155,9 @@ export default function AboutSection(props: AboutSectionProps) {
       } else {
         setUpdateStatus('idle');
         if (manual) {
-          const messageText = t("settings.about.latest_version") || "You're already using the latest version!";
+          const messageText = t("settings.about.latest_version");
           await message(messageText, {
-            title: t("settings.about.no_updates_available") || "No Updates Available",
+            title: t("settings.about.no_updates_available"),
             kind: "info"
           });
         }
@@ -224,12 +224,12 @@ export default function AboutSection(props: AboutSectionProps) {
       
       // Restart the app after successful installation
       const confirmed = await ask(
-        t("settings.about.update_complete") || "Update installed successfully. Do you want to restart the application now?",
+        t("settings.about.update_complete"),
         {
-          title: t("buttons.confirm") || "Confirm",
+          title: t("buttons.confirm"),
           kind: "info",
-          okLabel: t("settings.about.restart_now") || "Restart Now",
-          cancelLabel: t("buttons.later") || "Later"
+          okLabel: t("settings.about.restart_now"),
+          cancelLabel: t("buttons.later")
         }
       );
 
@@ -279,7 +279,7 @@ export default function AboutSection(props: AboutSectionProps) {
           <div class="flex items-center justify-between mb-4 min-h-[36px]">
             <div class="font-semibold flex items-center gap-2">
               <RefreshCw class="w-4 h-4 text-base-content/70" />
-              {t("settings.about.update_status") || "Update Status"}
+              {t("settings.about.update_status")}
             </div>
             <div class="flex items-center">
               {props.isScoopInstalled && (
@@ -290,13 +290,13 @@ export default function AboutSection(props: AboutSectionProps) {
                   class="btn btn-sm btn-primary"
                   onClick={() => checkForUpdates(true)}
                 >
-                  {t("settings.about.check_now") || "Check Now"}
+                  {t("settings.about.check_now")}
                 </button>
               )}
               {updateStatus() === 'checking' && (
                 <div class="flex items-center justify-center py-1 text-base-content/70 min-h-[36px]">
                   <span class="loading loading-spinner loading-sm mr-2"></span>
-                  {t("settings.about.checking_for_updates") || "Checking for updates..."}
+                  {t("settings.about.checking_for_updates")}
                 </div>
               )}
             </div>
@@ -304,7 +304,7 @@ export default function AboutSection(props: AboutSectionProps) {
 
           {props.isScoopInstalled ? (
             <div class="alert alert-info text-sm shadow-sm">
-              <span>{t("settings.about.scoop_update_instruction", { code: "scoop update rscoop" }) || "This app was installed via Scoop. Please use Scoop to update this application with the command: scoop update rscoop"}</span>
+              <span>{t("settings.about.scoop_update_instruction", { code: "scoop update rscoop" })}</span>
             </div>
           ) : (
             <div class="space-y-4">
@@ -313,14 +313,14 @@ export default function AboutSection(props: AboutSectionProps) {
                   <div class="alert alert-success shadow-sm">
                     <Download class="w-5 h-5" />
                     <div>
-                      <h3 class="font-bold">{t("settings.about.update_available") || "Update Available"}</h3>
-                      <div class="text-xs">{t("settings.about.update_ready", { version: updateInfo()?.version || 'unknown' }) || `Version ${updateInfo()?.version || 'unknown'} is ready to install`}</div>
+                      <h3 class="font-bold">{t("settings.about.update_available")}</h3>
+                      <div class="text-xs">{t("settings.about.update_ready", { version: updateInfo()?.version})}</div>
                     </div>
-                    <button class="btn btn-sm" onClick={installAvailableUpdate}>{t("buttons.install") || "Install"}</button>
+                    <button class="btn btn-sm" onClick={installAvailableUpdate}>{t("buttons.install")}</button>
                   </div>
                   <Show when={updateInfo()?.body}>
                     <div class="bg-base-200 rounded-lg p-3 text-xs max-h-32 overflow-y-auto border border-base-content/5">
-                      <div class="font-bold mb-1 opacity-70">{t("settings.about.release_notes") || "Release Notes"}</div>
+                      <div class="font-bold mb-1 opacity-70">{t("settings.about.release_notes")}</div>
                       <div class="whitespace-pre-wrap opacity-80">{updateInfo()?.body || ''}</div>
                     </div>
                   </Show>
@@ -330,10 +330,10 @@ export default function AboutSection(props: AboutSectionProps) {
               {updateStatus() === 'downloading' && (
                 <div class="space-y-2">
                   <div class="flex justify-between text-xs font-medium">
-                    <span>{t("settings.about.downloading_update") || "Downloading update..."}</span>
+                    <span>{t("settings.about.downloading_update")}</span>
                     <span>{downloadProgress().total
                       ? `${Math.round((downloadProgress().downloaded / (downloadProgress().total || 1)) * 100)}%`
-                      : (t("settings.about.downloading_no_size") || "Downloading...")}</span>
+                      : (t("settings.about.downloading_no_size"))}</span>
                   </div>
                   <progress
                     class="progress progress-primary w-full"
@@ -346,17 +346,17 @@ export default function AboutSection(props: AboutSectionProps) {
               {updateStatus() === 'installing' && (
                 <div class="flex items-center justify-center py-2 text-success font-medium">
                   <span class="loading loading-spinner loading-sm mr-3"></span>
-                  {t("settings.about.installing_update") || "Installing update..."}
+                  {t("settings.about.installing_update")}
                 </div>
               )}
 
               {updateStatus() === 'error' && (
                 <div class="alert alert-error shadow-sm">
                   <div class="flex-1">
-                    <div class="font-bold text-xs">{t("settings.about.update_failed") || "Update Failed"}</div>
-                    <div class="text-xs opacity-80">{updateError() || "An unknown error occurred"}</div>
+                    <div class="font-bold text-xs">{t("settings.about.update_failed")}</div>
+                    <div class="text-xs opacity-80">{updateError()}</div>
                   </div>
-                  <button class="btn btn-xs btn-outline" onClick={() => checkForUpdates(true)}>{t("settings.about.retry") || "Retry"}</button>
+                  <button class="btn btn-xs btn-outline" onClick={() => checkForUpdates(true)}>{t("settings.about.retry")}</button>
                 </div>
               )}
             </div>
@@ -364,7 +364,7 @@ export default function AboutSection(props: AboutSectionProps) {
           {/* Update Channel Selection */}
           <div class="border-t mt-6">
             <div class="font-semibold flex items-center gap-2 mb-4 mt-4">
-              {t("update_channel.title") || "Update Channel"}
+              {t("update_channel.title")}
             </div>
             <div class="space-y-3">
               <For each={channels()}>
@@ -387,9 +387,7 @@ export default function AboutSection(props: AboutSectionProps) {
                       <div class="flex items-center">
                         {channel.isSelected() && (
                           <div class="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-primary-foreground" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
+                            <Check class="w-3 h-3 " strokeWidth={3}/>
                           </div>
                         )}
                       </div>
@@ -406,7 +404,7 @@ export default function AboutSection(props: AboutSectionProps) {
                     await relaunch();
                   }}
                 >
-                  {t("settings.about.restart_app") || "Restart App"}
+                  {t("settings.about.restart_app")}
                 </button>
               </div>
             </div>
@@ -420,14 +418,14 @@ export default function AboutSection(props: AboutSectionProps) {
             onClick={() => openUrl('https://github.com/Kwensiu/Rscoop/').catch(console.error)}
           >
             <Github class="w-5 h-5" />
-            {t("settings.about.my_fork") || "My Fork"}
+            {t("settings.about.my_fork")}
           </button>
           <button
             class="btn btn-outline hover:bg-base-content hover:text-base-100 transition-all"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
             <Github class="w-5 h-5" />
-            {t("settings.about.upstream") || "Upstream"}
+            {t("settings.about.upstream")}
           </button>
 
           <button
@@ -435,7 +433,7 @@ export default function AboutSection(props: AboutSectionProps) {
             onClick={() => openUrl('https://amarbego.github.io/Rscoop/').catch(console.error)}
           >
             <BookOpen class="w-5 h-5" />
-            {t("settings.about.docs") || "Documentation"}
+            {t("settings.about.docs")}
           </button>
 
         </div>
