@@ -6,8 +6,8 @@ import { t } from "../../../i18n";
 function ThemeSettings() {
     const { settings, setTheme } = settingsStore;
 
-    const handleThemeChange = (isLight: boolean) => {
-        setTheme(isLight ? 'light' : 'dark');
+    const handleThemeChange = async (isLight: boolean) => {
+        await setTheme(isLight ? 'light' : 'dark');
     };
 
     return (

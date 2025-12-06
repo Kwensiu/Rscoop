@@ -38,7 +38,7 @@ function WindowBehaviorSettings() {
                 key: "window.closeToTray",
                 value: enabled
             });
-            setWindowSettings({ closeToTray: enabled });
+            await setWindowSettings({ closeToTray: enabled });
         } catch (error) {
             console.error("Failed to save close to tray setting:", error);
         } finally {

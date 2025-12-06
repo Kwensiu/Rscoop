@@ -22,7 +22,7 @@ export default function VirusTotalSettings() {
             if (key) {
                 // If an API key is present, assume the user wants the feature enabled.
                 if (!settings.virustotal.enabled) {
-                    setVirusTotalSettings({ enabled: true });
+                    await setVirusTotalSettings({ enabled: true });
                 }
             }
         } catch (err) {
@@ -55,7 +55,7 @@ export default function VirusTotalSettings() {
             await invoke("set_virustotal_api_key", { key: apiKey() });
             // Enable the feature if a valid API key is being saved.
             if (apiKey() && !settings.virustotal.enabled) {
-                setVirusTotalSettings({ enabled: true });
+                await setVirusTotalSettings({ enabled: true });
             }
             setSuccessMessage(t("settings.virustotal.save_success"));
             setTimeout(() => setSuccessMessage(null), 3000);
@@ -81,12 +81,12 @@ export default function VirusTotalSettings() {
                 </span>
             }
             headerAction={
-                <SettingsToggle
-                    checked={settings.virustotal.enabled}
-                    onChange={(checked) => setVirusTotalSettings({ enabled: checked })}
-                    disabled={!apiKey()}
-                    showStatusLabel={true}
-                />
+                    <SettingsToggle
+                        checked={settings.virustotal.enabled}
+                        onChange={async (checked) => await setVirusTotalSettings({ enabled: checked })}
+                        disabled={!apiKey()}
+                        showStatusLabel={true}
+                    />
             }
         >
             <label class="label">
@@ -119,7 +119,7 @@ export default function VirusTotalSettings() {
                     <div class="form-control">
                         <SettingsToggle
                             checked={settings.virustotal.autoScanOnInstall}
-                            onChange={(checked) => setVirusTotalSettings({ autoScanOnInstall: checked })}
+                            onChange={async (checked) => await setVirusTotalSettings({ autoScanOnInstall: checked })}
                             label={t("settings.virustotal.auto_scan_packages")}
                         />
                     </div>

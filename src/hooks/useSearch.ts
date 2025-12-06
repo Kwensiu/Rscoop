@@ -60,7 +60,8 @@ export function useSearch(): UseSearchReturn {
     
     const [results, setResults] = createSignal<ScoopPackage[]>([]);
     const [loading, setLoading] = createSignal(false);
-    const [activeTab, setActiveTab] = createSignal<"packages" | "includes">(
+    const [activeTab, setActiveTab] = createStoredSignal<"packages" | "includes">(
+        "search-active-tab",
         "packages"
     );
     const [bucketFilter, setBucketFilter] = createSignal<string>("");

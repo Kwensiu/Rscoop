@@ -15,7 +15,7 @@ function DebugSettings() {
             headerAction={
                 <SettingsToggle
                     checked={settings.debug.enabled}
-                    onChange={(checked) => setDebugSettings({ enabled: checked })}
+                    onChange={async (checked) => await setDebugSettings({ enabled: checked })}
                     showStatusLabel={true}
                 />
             }

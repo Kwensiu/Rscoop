@@ -5,15 +5,19 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { HardDrive, Folder, FileText, RotateCcw, Trash2 } from "lucide-solid";
 import Card from "../../common/Card";
 import { t } from "../../../i18n";
+import { createStoredSignal } from "../../../hooks/createStoredSignal";
 
 export default function AppDataManagement() {
     const [appDataDirPath, setAppDataDirPath] = createSignal<string>("");
     const [logDir, setLogDir] = createSignal<string>("");
-    const [logRetentionDays, setLogRetentionDays] = createSignal<number>(7);
+    const [logRetentionDays, setLogRetentionDays] = createStoredSignal<number>("logRetentionDays", 7);
     const [isLoading, setIsLoading] = createSignal<boolean>(true);
     const [isClearing, setIsClearing] = createSignal<boolean>(false);
     const [clearSuccess, setClearSuccess] = createSignal<boolean>(false);
     const [clearError, setClearError] = createSignal<string | null>(null);
+    const [loadError, setLoadError] = createSignal<string | null>(null);
+    const [clearConfirm, setClearConfirm] = createSignal<boolean>(false);
+    const [clearTimer, setClearTimer] = createSignal<number | null>(null);
 
     onMount(async () => {
         try {
@@ -25,7 +29,10 @@ export default function AppDataManagement() {
             // 获取日志保留天数设置
             const retentionDays = await invoke<number>("get_log_retention_days");
             setLogRetentionDays(retentionDays);
+            setLoadError(null);
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setLoadError(t("settings.app_data.load_error") + ": " + errorMessage);
             console.error("Failed to load app data info:", error);
         } finally {
             setIsLoading(false);
@@ -34,38 +41,68 @@ export default function AppDataManagement() {
 
     const openAppDataDir = async () => {
         if (appDataDirPath()) {
-            await openPath(appDataDirPath());
+            try {
+                await openPath(appDataDirPath());
+            } catch (error) {
+                console.error("Failed to open app data directory:", error);
+            }
         }
     };
 
     const openLogDir = async () => {
         if (logDir()) {
-            await openPath(logDir());
+            try {
+                await openPath(logDir());
+            } catch (error) {
+                console.error("Failed to open log directory:", error);
+            }
         }
     };
 
     const clearApplicationData = async () => {
-        if (!confirm(t("settings.app_data.clear_confirm"))) {
+        // 防止并发操作
+        if (isClearing()) {
             return;
         }
-
-        setIsClearing(true);
-        setClearSuccess(false);
-        setClearError(null);
-
-        try {
-            await invoke("clear_application_data");
-            setClearSuccess(true);
+        
+        if (clearConfirm()) {
+            // 第二次点击 - 执行清理
+            if (clearTimer()) {
+                window.clearTimeout(clearTimer()!);
+                setClearTimer(null);
+            }
+            setClearConfirm(false);
             
-            // 3秒后重启应用
-            setTimeout(async () => {
-                await relaunch();
+            // 重置状态
+            setClearSuccess(false);
+            setClearError(null);
+            setIsClearing(true);
+
+            try {
+                // Clear both regular application data and Tauri store data
+                await invoke("clear_application_data");
+                await invoke("clear_store_data");
+                
+                // 只有在清理操作真正完成后才显示成功消息
+                setClearSuccess(true);
+                
+                // 3秒后重启应用
+                setTimeout(async () => {
+                    await relaunch();
+                }, 3000);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                setClearError(t("settings.app_data.clear_error") + ": " + errorMessage);
+                setIsClearing(false);  // 只有在失败时才重置清理状态
+            }
+        } else {
+            // 第一次点击 - 显示确认
+            setClearConfirm(true);
+            const timer = window.setTimeout(() => {
+                setClearConfirm(false);
+                setClearTimer(null);
             }, 3000);
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            setClearError(t("settings.app_data.clear_error") + ": " + errorMessage);
-        } finally {
-            setIsClearing(false);
+            setClearTimer(timer);
         }
     };
 
@@ -74,6 +111,8 @@ export default function AppDataManagement() {
             await invoke("set_log_retention_days", { days });
             setLogRetentionDays(days);
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setClearError(t("settings.app_data.log_retention_error") + ": " + errorMessage);
             console.error("Failed to set log retention days:", error);
         }
     };
@@ -86,6 +125,12 @@ export default function AppDataManagement() {
         >
             <Show when={!isLoading()}>
                 <div class="space-y-6">
+                    <Show when={loadError()}>
+                        <div class="alert alert-error">
+                            <span>{loadError()}</span>
+                        </div>
+                    </Show>
+                    
                     {/* Data Directory */}
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-base-200 rounded-lg">
                         <div class="flex items-start gap-3">
@@ -159,10 +204,15 @@ export default function AppDataManagement() {
                         </div>
                         <button 
                             class="btn btn-sm btn-warning whitespace-nowrap"
+                            classList={{ "btn-error": clearConfirm() }}
                             onClick={clearApplicationData}
                             disabled={isClearing()}
                         >
-                            <Show when={isClearing()} fallback={t("settings.app_data.clear_button")}>
+                            <Show when={isClearing()} fallback={
+                                <Show when={clearConfirm()} fallback={t("settings.app_data.clear_button")}>
+                                    {t("settings.app_data.sure")}
+                                </Show>
+                            }>
                                 <span class="loading loading-spinner loading-xs"></span>
                                 {t("settings.app_data.clearing")}
                             </Show>

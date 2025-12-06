@@ -27,7 +27,7 @@ export default function AboutSection(props: AboutSectionProps) {
   const [downloadProgress, setDownloadProgress] = createSignal<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
 
   const handleChannelChange = async (channel: 'stable' | 'test') => {
-    setUpdateSettings({ channel });
+    await setUpdateSettings({ channel });
 
     // Call backend to reload update configuration
     try {

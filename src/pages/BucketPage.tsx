@@ -2,6 +2,7 @@ import { createSignal, onMount, Show} from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { useBuckets, type BucketInfo } from "../hooks/useBuckets";
 import { usePackageInfo } from "../hooks/usePackageInfo";
+import { createStoredSignal } from "../hooks/createStoredSignal";
 import { ScoopPackage } from "../types/scoop";
 import BucketInfoModal from "../components/BucketInfoModal";
 import BucketSearch from "../components/page/buckets/BucketSearch";
@@ -33,7 +34,7 @@ function BucketPage() {
   const [searchTotalCount, setSearchTotalCount] = createSignal(0);
   const [searchLoading, setSearchLoading] = createSignal(false);
   const [searchError, setSearchError] = createSignal<string | null>(null);
-  const [isExpandedSearch, setIsExpandedSearch] = createSignal(false);
+  const [isExpandedSearch, setIsExpandedSearch] = createStoredSignal('bucketExpandedSearch', false);
   
   // Update state
   const [updatingBuckets, setUpdatingBuckets] = createSignal<Set<string>>(new Set());

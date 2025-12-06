@@ -8,6 +8,7 @@ import SearchResultsList from "../components/page/search/SearchResultsList";
 
 import { createSignal, createEffect, onCleanup, onMount } from "solid-js";
 import { t } from "../i18n";
+import { createStoredSignal } from "../hooks/createStoredSignal";
 
 function SearchPage() {
   const {
@@ -36,7 +37,7 @@ function SearchPage() {
     setBucketFilter
   } = useSearch();
 
-  const [currentPage, setCurrentPage] = createSignal(1);
+  const [currentPage, setCurrentPage] = createStoredSignal('searchCurrentPage', 1);
   const [uniqueBuckets, setUniqueBuckets] = createSignal<string[]>([]);
 
   onMount(() => {

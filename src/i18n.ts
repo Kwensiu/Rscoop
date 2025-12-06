@@ -217,7 +217,6 @@ export interface Dict {
       docs: string;
       copyright: string;
     };
-
   };
   [key: string]: string | ((...args: any[]) => string) | any;
 }

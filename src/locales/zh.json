@@ -444,7 +444,10 @@
       "log_retention": "Log 保留",
       "log_retention_description": "更改Rscoop日志文件的保留时间",
       "open_directory": "打开目录",
-      "title": "Rscoop 数据"
+      "sure": "确认？",
+      "title": "Rscoop 数据",
+      "load_error": "无法加载应用数据信息",
+      "log_retention_error": "设置日志保留天数失败"
     },
     "auto_cleanup": {
       "clean_old_versions": "清理旧版本",

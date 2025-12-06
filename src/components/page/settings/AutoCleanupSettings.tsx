@@ -9,11 +9,11 @@ function AutoCleanupSettings() {
     const { settings, setCleanupSettings } = settingsStore;
     const [localVersionCount, setLocalVersionCount] = createSignal(settings.cleanup.preserveVersionCount);
 
-    const handleVersionCountChange = (e: Event) => {
+    const handleVersionCountChange = async (e: Event) => {
         const value = parseInt((e.target as HTMLInputElement).value);
         setLocalVersionCount(value);
         if (value >= 1 && value <= 10) {
-            setCleanupSettings({ preserveVersionCount: value });
+            await setCleanupSettings({ preserveVersionCount: value });
         }
     };
 
@@ -25,7 +25,7 @@ function AutoCleanupSettings() {
             headerAction={
                 <SettingsToggle
                     checked={settings.cleanup.autoCleanupEnabled}
-                    onChange={(checked) => setCleanupSettings({ autoCleanupEnabled: checked })}
+                    onChange={async (checked) => await setCleanupSettings({ autoCleanupEnabled: checked })}
                     showStatusLabel={true}
                     className="gap-3"
                 />
@@ -49,7 +49,7 @@ function AutoCleanupSettings() {
                                 type="checkbox"
                                 class="toggle toggle-primary"
                                 checked={settings.cleanup.cleanupOldVersions}
-                                onChange={(e) => setCleanupSettings({ cleanupOldVersions: e.currentTarget.checked })}
+                                onChange={async (e) => await setCleanupSettings({ cleanupOldVersions: e.currentTarget.checked })}
                             />
                         </div>
 
@@ -84,7 +84,7 @@ function AutoCleanupSettings() {
                                 type="checkbox"
                                 class="toggle toggle-primary"
                                 checked={settings.cleanup.cleanupCache}
-                                onChange={(e) => setCleanupSettings({ cleanupCache: e.currentTarget.checked })}
+                                onChange={async (e) => await setCleanupSettings({ cleanupCache: e.currentTarget.checked })}
                             />
                         </div>
                     </div>

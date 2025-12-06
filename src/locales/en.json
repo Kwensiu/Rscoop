@@ -444,7 +444,10 @@
       "log_retention": "Log Retention",
       "log_retention_description": "Change the retention period of Rscoop log files",
       "open_directory": "Open Directory",
-      "title": "Rscoop Data"
+      "sure": "Sure?",
+      "title": "Rscoop Data",
+      "load_error": "Could not load application data info",
+      "log_retention_error": "Failed to set log retention days"
     },
     "auto_cleanup": {
       "clean_old_versions": "Clean Old Versions",

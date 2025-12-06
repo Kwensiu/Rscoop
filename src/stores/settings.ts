@@ -1,13 +1,15 @@
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
+import { Store } from "@tauri-apps/plugin-store";
 import { View } from "../types/scoop";
 
-const LOCAL_STORAGE_KEY = 'rscoop-settings';
+const STORE_NAME = 'settings.dat';
 
 interface Settings {
   virustotal: {
     enabled: boolean;
     autoScanOnInstall: boolean;
+    apiKey?: string;
   };
   window: {
     closeToTray: boolean;
@@ -63,56 +65,108 @@ const defaultSettings: Settings = {
 };
 
 function createSettingsStore() {
-  const getInitialSettings = (): Settings => {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (stored) {
-      // Deep merge stored settings with defaults to handle new/missing keys
-      const storedSettings = JSON.parse(stored);
-      return {
-        ...defaultSettings,
-        virustotal: {
-          ...defaultSettings.virustotal,
-          ...storedSettings.virustotal,
-        },
-        window: {
-          ...defaultSettings.window,
-          ...storedSettings.window,
-        },
-        theme: storedSettings.theme || defaultSettings.theme,
-        debug: {
-          ...defaultSettings.debug,
-          ...storedSettings.debug,
-        },
-        cleanup: {
-          ...defaultSettings.cleanup,
-          ...storedSettings.cleanup,
-        },
-        buckets: {
-          ...defaultSettings.buckets,
-          ...storedSettings.buckets,
-        },
-        update: {
-          ...defaultSettings.update,
-          ...storedSettings.update,
-        },
-        defaultLaunchPage: storedSettings.defaultLaunchPage || defaultSettings.defaultLaunchPage,
-      };
+  let store: Store | null = null;
+  let storeInitialized = false;
+
+  // Initialize the Tauri store
+  const initStore = async () => {
+    if (storeInitialized) return store;
+    
+    store = await Store.load(STORE_NAME);
+    // Store is loaded in the app's data directory
+    console.log('Tauri store for settings loaded successfully');
+    storeInitialized = true;
+    
+    // First-time setup: migrate from localStorage if exists
+    try {
+      const localStorageData = localStorage.getItem('rscoop-settings');
+      if (localStorageData) {
+        // Migrate data from localStorage to Tauri store
+        const settingsData = JSON.parse(localStorageData);
+        await store!.set('settings', settingsData);
+        localStorage.removeItem('rscoop-settings'); // Clean up localStorage after migration
+      }
+    } catch (error) {
+      console.error('Error migrating settings from localStorage:', error);
+    }
+    
+    return store;
+  };
+
+  const getInitialSettings = async (): Promise<Settings> => {
+    const storeInstance = await initStore();
+    if (storeInstance) {
+      try {
+        const stored = await storeInstance.get<Settings>('settings');
+        if (stored) {
+          // Deep merge stored settings with defaults to handle new/missing keys
+          return {
+            ...defaultSettings,
+            virustotal: {
+              ...defaultSettings.virustotal,
+              ...stored.virustotal,
+            },
+            window: {
+              ...defaultSettings.window,
+              ...stored.window,
+            },
+            theme: stored.theme || defaultSettings.theme,
+            debug: {
+              ...defaultSettings.debug,
+              ...stored.debug,
+            },
+            cleanup: {
+              ...defaultSettings.cleanup,
+              ...stored.cleanup,
+            },
+            buckets: {
+              ...defaultSettings.buckets,
+              ...stored.buckets,
+            },
+            update: {
+              ...defaultSettings.update,
+              ...stored.update,
+            },
+            defaultLaunchPage: stored.defaultLaunchPage || defaultSettings.defaultLaunchPage,
+          };
+        }
+      } catch (error) {
+        console.error('Error loading settings from store:', error);
+      }
     }
     return defaultSettings;
   };
 
-  const [settings, setSettings] = createStore<Settings>(getInitialSettings());
+  const [settings, setSettings] = createStore<Settings>(defaultSettings);
 
-  const saveSettings = (newSettings: Partial<Settings>) => {
+  // Initialize settings from store on startup
+  (async () => {
+    const initialSettings = await getInitialSettings();
+    setSettings(initialSettings);
+  })();
+
+  const saveSettings = async (newSettings: Partial<Settings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      
+      // Save to Tauri store
+      (async () => {
+        try {
+          const storeInstance = await initStore();
+          if (storeInstance) {
+            await storeInstance.set('settings', updated);
+          }
+        } catch (error) {
+          console.error('Error saving settings to store:', error);
+        }
+      })();
+      
       return updated;
     });
   };
 
-  const setVirusTotalSettings = (newVtSettings: Partial<Settings['virustotal']>) => {
-    saveSettings({
+  const setVirusTotalSettings = async (newVtSettings: Partial<Settings['virustotal']>) => {
+    await saveSettings({
       virustotal: {
         ...settings.virustotal,
         ...newVtSettings,
@@ -120,8 +174,8 @@ function createSettingsStore() {
     });
   };
 
-  const setWindowSettings = (newWindowSettings: Partial<Settings['window']>) => {
-    saveSettings({
+  const setWindowSettings = async (newWindowSettings: Partial<Settings['window']>) => {
+    await saveSettings({
       window: {
         ...settings.window,
         ...newWindowSettings,
@@ -129,12 +183,12 @@ function createSettingsStore() {
     });
   };
 
-  const setTheme = (theme: 'dark' | 'light') => {
-    saveSettings({ theme });
+  const setTheme = async (theme: 'dark' | 'light') => {
+    await saveSettings({ theme });
   };
 
-  const setDebugSettings = (newDebugSettings: Partial<Settings['debug']>) => {
-    saveSettings({
+  const setDebugSettings = async (newDebugSettings: Partial<Settings['debug']>) => {
+    await saveSettings({
       debug: {
         ...settings.debug,
         ...newDebugSettings,
@@ -142,8 +196,8 @@ function createSettingsStore() {
     });
   };
 
-  const setCleanupSettings = (newCleanupSettings: Partial<Settings['cleanup']>) => {
-    saveSettings({
+  const setCleanupSettings = async (newCleanupSettings: Partial<Settings['cleanup']>) => {
+    await saveSettings({
       cleanup: {
         ...settings.cleanup,
         ...newCleanupSettings,
@@ -151,8 +205,8 @@ function createSettingsStore() {
     });
   };
 
-  const setBucketSettings = (newBucketSettings: Partial<Settings['buckets']>) => {
-    saveSettings({
+  const setBucketSettings = async (newBucketSettings: Partial<Settings['buckets']>) => {
+    await saveSettings({
       buckets: {
         ...settings.buckets,
         ...newBucketSettings,
@@ -160,8 +214,8 @@ function createSettingsStore() {
     });
   };
 
-  const setUpdateSettings = (newUpdateSettings: Partial<Settings['update']>) => {
-    saveSettings({
+  const setUpdateSettings = async (newUpdateSettings: Partial<Settings['update']>) => {
+    await saveSettings({
       update: {
         ...settings.update,
         ...newUpdateSettings,
@@ -169,8 +223,8 @@ function createSettingsStore() {
     });
   };
 
-  const setDefaultLaunchPage = (page: View) => {
-    saveSettings({ defaultLaunchPage: page });
+  const setDefaultLaunchPage = async (page: View) => {
+    await saveSettings({ defaultLaunchPage: page });
   };
 
   return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setUpdateSettings, setTheme, setDefaultLaunchPage };

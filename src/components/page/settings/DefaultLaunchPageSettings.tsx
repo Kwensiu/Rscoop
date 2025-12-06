@@ -15,9 +15,9 @@ function DefaultLaunchPageSettings() {
         { value: "settings", label: t("settings.default_launch_page.settings") },
     ];
 
-    const handlePageChange = (e: Event) => {
+    const handlePageChange = async (e: Event) => {
         const target = e.currentTarget as HTMLSelectElement;
-        setDefaultLaunchPage(target.value as View);
+        await setDefaultLaunchPage(target.value as View);
     };
 
     return (

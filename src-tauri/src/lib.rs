@@ -40,10 +40,23 @@ pub fn run() {
         }));
     }
 
-    // Determine log directory path
-    let log_dir = dirs::data_local_dir()
-        .map(|dir| dir.join("rscoop").join("logs"))
-        .unwrap_or_else(|| PathBuf::from("./logs"));
+    // Determine log directory path - use consistent path with app data
+    let log_dir = if let Some(app_data_dir) = dirs::data_dir() {
+        let app_data_dir = app_data_dir.join("com.rscoop.app").join("logs");
+        if app_data_dir.exists() || std::fs::create_dir_all(&app_data_dir).is_ok() {
+            app_data_dir
+        } else {
+            // Fallback to the old rscoop directory
+            dirs::data_local_dir()
+                .map(|dir| dir.join("rscoop").join("logs"))
+                .unwrap_or_else(|| PathBuf::from("./logs"))
+        }
+    } else {
+        // Fallback to the old rscoop directory
+        dirs::data_local_dir()
+            .map(|dir| dir.join("rscoop").join("logs"))
+            .unwrap_or_else(|| PathBuf::from("./logs"))
+    };
 
     cleanup_old_logs(&log_dir);
 
@@ -168,6 +181,7 @@ pub fn run() {
             commands::debug::get_log_retention_days,
             commands::debug::set_log_retention_days,
             commands::debug::clear_application_data,
+            commands::debug::clear_store_data,
             commands::version::check_and_update_version,
             commands::startup::is_auto_start_enabled,
             commands::startup::set_auto_start_enabled,

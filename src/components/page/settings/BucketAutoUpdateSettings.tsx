@@ -24,11 +24,11 @@ export default function BucketAutoUpdateSettings() {
         try {
             const value = await invoke<unknown>("get_config_value", { key: "buckets.autoUpdateInterval" });
             if (typeof value === "string") {
-                setBucketSettings({ autoUpdateInterval: value });
+                await setBucketSettings({ autoUpdateInterval: value });
             } else if (value && typeof value === "object" && (value as any).value) {
                 // Edge case if store returns wrapped value
                 const v = (value as any).value;
-                if (typeof v === "string") setBucketSettings({ autoUpdateInterval: v });
+                if (typeof v === "string") await setBucketSettings({ autoUpdateInterval: v });
             }
         } catch (e) {
             // Non-fatal: setting may not exist yet
@@ -42,7 +42,7 @@ export default function BucketAutoUpdateSettings() {
         setSaving(true);
         setError(null);
         try {
-            setBucketSettings({ autoUpdateInterval: newValue });
+            await setBucketSettings({ autoUpdateInterval: newValue });
             await invoke("set_config_value", { key: "buckets.autoUpdateInterval", value: newValue });
         } catch (e) {
             setError(t("settings.bucket_auto_update.error"));
@@ -129,7 +129,7 @@ export default function BucketAutoUpdateSettings() {
                             class="toggle toggle-primary"
                             checked={settings.buckets.autoUpdatePackagesEnabled}
                             onChange={async (e) => {
-                                setBucketSettings({ autoUpdatePackagesEnabled: e.currentTarget.checked });
+                                await setBucketSettings({ autoUpdatePackagesEnabled: e.currentTarget.checked });
                                 await invoke("set_config_value", { key: "buckets.autoUpdatePackagesEnabled", value: e.currentTarget.checked });
                             }}
                         />

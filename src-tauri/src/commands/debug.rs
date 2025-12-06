@@ -8,8 +8,17 @@ use tauri::State;
 /// Gets the application data directory
 #[tauri::command]
 pub fn get_app_data_dir() -> Result<String, String> {
+    // First try to get the Tauri app data directory
+    if let Some(app_data_dir) = dirs::data_dir() {
+        let app_data_dir = app_data_dir.join("com.rscoop.app");
+        if app_data_dir.exists() {
+            return Ok(app_data_dir.to_string_lossy().to_string());
+        }
+    }
+    
+    // Fallback to the old rscoop directory
     let data_dir = dirs::data_local_dir()
-        .map(|d| d.join("rscoop"))
+        .and_then(|d| Some(d.join("rscoop")))
         .ok_or("Could not determine data directory")?;
     
     Ok(data_dir.to_string_lossy().to_string())
@@ -38,19 +47,101 @@ pub fn set_log_retention_days(days: i32) -> Result<(), String> {
 /// Clears all application data and cache
 #[tauri::command]
 pub fn clear_application_data() -> Result<(), String> {
-    let data_dir = dirs::data_local_dir()
-        .map(|d| d.join("rscoop"))
-        .ok_or("Could not determine data directory")?;
+    // Clear both possible data directories to ensure complete cleanup
+    let data_dirs = vec![
+        // New Tauri app data directory
+        dirs::data_dir().map(|d| d.join("com.rscoop.app")),
+        // Old rscoop directory
+        dirs::data_local_dir().map(|d| d.join("rscoop")),
+    ];
     
-    if data_dir.exists() && data_dir.is_dir() {
-        for entry in fs::read_dir(&data_dir).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-            
-            if path.is_file() {
-                fs::remove_file(&path).map_err(|e| e.to_string())?;
-            } else if path.is_dir() {
-                fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+    for data_dir_option in data_dirs {
+        if let Some(data_dir) = data_dir_option {
+            if data_dir.exists() && data_dir.is_dir() {
+                log::info!("Clearing data directory: {}", data_dir.display());
+                
+                for entry in fs::read_dir(&data_dir).map_err(|e| e.to_string())? {
+                    let entry = entry.map_err(|e| e.to_string())?;
+                    let path = entry.path();
+                    
+                    if path.is_file() {
+                        fs::remove_file(&path).map_err(|e| e.to_string())?;
+                    } else if path.is_dir() {
+                        fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Also clear EBWebView cache directories
+    clear_webview_cache()?;
+    
+    Ok(())
+}
+
+/// Clears WebView2 (EBWebView) cache directories
+fn clear_webview_cache() -> Result<(), String> {
+    log::info!("Attempting to clear WebView2 cache directories");
+    
+    // Try to find and clear EBWebView cache in both rscoop and com.rscoop.app directories
+    let webview_dirs = vec![
+        // New Tauri app data directory - EBWebView cache
+        dirs::data_dir().map(|d| d.join("com.rscoop.app").join("EBWebView")),
+        // Old rscoop directory - EBWebView cache
+        dirs::data_local_dir().map(|d| d.join("rscoop").join("EBWebView")),
+    ];
+    
+    for webview_dir_option in webview_dirs {
+        if let Some(webview_dir) = webview_dir_option {
+            if webview_dir.exists() && webview_dir.is_dir() {
+                log::info!("Clearing WebView cache directory: {}", webview_dir.display());
+                
+                // Remove the entire directory and its contents
+                if let Err(e) = fs::remove_dir_all(&webview_dir) {
+                    log::warn!("Failed to completely remove WebView directory: {}", e);
+                    
+                    // Try to clear contents if directory removal fails
+                    if let Ok(entries) = fs::read_dir(&webview_dir) {
+                        for entry in entries {
+                            if let Ok(entry) = entry {
+                                let path = entry.path();
+                                if path.is_file() {
+                                    let _ = fs::remove_file(&path);
+                                } else if path.is_dir() {
+                                    let _ = fs::remove_dir_all(&path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Clears Tauri store configuration data
+#[tauri::command]
+pub fn clear_store_data() -> Result<(), String> {
+    // Clear Tauri store files from both possible locations
+    let store_files = vec![
+        // New Tauri app data directory
+        dirs::data_dir().map(|d| d.join("com.rscoop.app").join("settings.dat")),
+        dirs::data_dir().map(|d| d.join("com.rscoop.app").join("signals.dat")),
+        dirs::data_dir().map(|d| d.join("com.rscoop.app").join("version.txt")),
+        // Old rscoop directory
+        dirs::data_local_dir().map(|d| d.join("rscoop").join("settings.dat")),
+        dirs::data_local_dir().map(|d| d.join("rscoop").join("signals.dat")),
+        dirs::data_local_dir().map(|d| d.join("rscoop").join("version.txt")),
+    ];
+    
+    for store_file_option in store_files {
+        if let Some(store_file) = store_file_option {
+            if store_file.exists() && store_file.is_file() {
+                log::info!("Removing store file: {}", store_file.display());
+                fs::remove_file(&store_file).map_err(|e| e.to_string())?;
             }
         }
     }
@@ -233,5 +324,14 @@ pub fn read_app_log_file() -> Result<String, String> {
 }
 
 fn get_log_dir() -> Option<PathBuf> {
+    // First try to get the Tauri app data directory
+    if let Some(app_data_dir) = dirs::data_dir() {
+        let app_data_dir = app_data_dir.join("com.rscoop.app");
+        if app_data_dir.exists() {
+            return Some(app_data_dir.join("logs"));
+        }
+    }
+    
+    // Fallback to the old rscoop directory
     dirs::data_local_dir().map(|d| d.join("rscoop").join("logs"))
 }
