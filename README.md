@@ -32,7 +32,7 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <summary>点击展开</summary>
 <br>
 
-使用 [Solid-JS i18n](https://primitives.solidjs.community/package/i18n/) 实现了项目国际化。
+使用 [Solid-JS i18n](https://primitives.solidjs.community/package/i18n/) 实现了项目国际化。  
 目前只有中英切换，部分文本可能有纰漏。<br>
 ![i18n](docs/assets/images/i18n.png)
 >可从右上角语言按钮切换显示语言
@@ -48,7 +48,7 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 理论上就是一个Powershell  
 添加了自动 `scoop` 前缀模式（可开关）  
 输入Scoop命令时可以省略 `scoop` 五个字母和一个空格。~~（气笑了）~~<br>
-![Scoop Commands Input Field](E:/DEVELOP/Rscoop12/Rscoop-k/docs/assets/images/CommandsInput.png)
+![Scoop Commands Input Field](docs/assets/images/CommandsInput.png)
 
 **注意：**
 部分情况GUI不能显示一些错误信息，在各种类终端界面都有这个问题。
@@ -63,7 +63,7 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <summary>点击展开</summary>
 <br>
 
-添加了Scoop配置管理组件，快速更改Scoop config文件内容
+添加了Scoop配置管理组件，快速更改Scoop config文件内容<br>
 
 ![ScoopConfig](docs/assets/images/ScoopConfig.png)
 >位于“诊断”页面
@@ -77,11 +77,9 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <summary>点击展开</summary>
 <br>
 
-添加了“更改仓库”功能，用于解决 Bucket 失效/改名/调试等问题。
-
-为“更新”与“卸载”添加二次确认按钮，防止误操作。
-
-同时对上游`OperationModal`进行了重构，现支持单个面板最小化。
+添加了“更改仓库”功能，用于解决 Bucket 失效/改名/调试等问题。  
+为“更新”与“卸载”添加二次确认按钮，防止误操作。  
+同时对上游`OperationModal`进行了重构，现支持单个面板最小化。<br>
 
 **注意：** 多实例最小化组件 暂时没有解决的头绪，非常不建议同时调用多个Scoop运行，最小化仅用于临时查看其他信息。
 
@@ -98,7 +96,7 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <br>
 
 现在软件可以自动识别Scoop路径，  
-并检测Scoop目录结构是否符合GUI预期，防止出现潜在的问题（未经广泛测试）
+并检测Scoop目录结构是否符合GUI预期，防止出现潜在的问题（未经广泛测试）<br>
 
 ![AutoDetect](docs/assets/images/AutoDetect.png)
 >位于“设置”页面的“管理”分页
@@ -112,7 +110,7 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <summary>点击展开</summary>
 <br>
 
-仅供测试，弄出来主要还是练手。Action 工作流经常看的我头大...
+仅供测试，弄出来主要还是练手。Action 工作流经常看的我头大...<br>
 
 **注意：** 切换通道后需要重启才能正确获取更新信息。
 
@@ -127,10 +125,9 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <summary>点击展开</summary>
 <br>
 
-完善了软件的Tauri Store插件使用，现在数据会保存在[本地](C:\Users\x1852\AppData\Roaming\com.rscoop.app)
-
-可以调整 Rscoop 日志的保存时间、删除 Rscoop 产生的配置与缓存文件
-**不会**修改 Scoop 本体的任何数据。
+完善了软件的Tauri Store插件使用，现在数据会保存在[本地](C:\Users\x1852\AppData\Roaming\com.rscoop.app)  
+可以调整 Rscoop 日志的保存时间、删除 Rscoop 产生的配置与缓存文件  
+**不会**修改 Scoop 本体的任何数据。<br>
 
 ![RscoopData](docs/assets/images/RscoopData.png)
 
@@ -143,8 +140,8 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <summary>点击展开</summary>
 <br>
 
-懒人专用，会全局在右下角显示“全部更新”的动画按钮 ~~,动画很Q弹~~。
-当然 Rscoop 目前已实现定时自动 仓库/软件包 更新（由原作者AmarBego添加），所以我提供了这个按钮显示的开关。
+懒人专用，会全局在右下角显示“全部更新”的动画按钮 ~~,动画很Q弹~~。  
+当然 Rscoop 目前已实现定时自动 仓库/软件包 更新（由原作者AmarBego添加），所以我提供了这个按钮显示的开关。<br>
 
 ![UpdateAllButton](docs/assets/images/UpdateAllButton.png)
 
