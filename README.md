@@ -1,47 +1,164 @@
-## 📘 原始文档
+<div align="center">
 
-原README内容请参考上游仓库，或参考[README.md.old](README.md.old)
+# Rscoop-Fork
+[English](README_en.md) | 简体中文
 
-Original README content can be found in the upstream repository
-Or refer to [README.md.old](README.md.old)
+[Rscoop Doc](https://github.com/AmarBego/Rscoop/blob/main/README.md)
 
----------------------------------------------------------------------
+</div>
 
-## 写给用户：
+---
 
-推荐使用exe而非MSI安装。
+## 关于
+ 
 
-这是一个Scoop的GUI，用于管理 Windows 下的 Scoop仓库/软件 的 安装、卸载、更新。
+Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作者AmarBego依然在持续更新维护。
+我的Fork仓库添加了上游尚未实现的多个功能，因过度修改暂不计划PR。
 
-添加了一些功能，至少不再需要打开终端管理了。
+~~推荐使用exe而非MSI安装。~~
+已将使用NSIS打包替换MSI，推荐使用setup.exe安装，当然也提供了便携版
 
-有计划添加"定时更新"的功能，但是目前够用，等我用几天看看有没有bug吧。
+大部分功能已实现，现在有计划添加Scoop本体的快捷安装。不过Scoop安装方式简单又多样，添加到GUI有点冗余了。
 
-## 写给上游开发者：
+## 功能
 
-如果你碰巧看到了我的Fork——
+已实现的功能可参考上游仓库文档，这里仅详细介绍新增的功能
 
-感谢你提供了一个较为完善的GUI，我尝试添加了一些功能，完善了GUI的管理功能。
+---
 
-但是绝大部分是由AI生成的！所以我不会向你推送代码。如果我添加的功能有你需要的，可以直接拉取，或用更规范的形式添加到你的项目。
+### 🌐 i18n 国际化支持
 
----------------------------------------------------------------------
+<details>
+<summary>点击展开</summary>
+<br>
 
-## ``AI Translation``
+使用 [Solid-JS i18n](https://primitives.solidjs.community/package/i18n/) 实现了项目国际化。
+目前只有中英切换，部分文本可能有纰漏。<br>
+![i18n](docs/assets/images/i18n.png)
+>可从右上角语言按钮切换显示语言
+</details>
 
-### To users:
+##
 
-This is a GUI for Scoop, designed to manage the installation, uninstallation, and updating of Scoop buckets and software on Windows.
+### 📲 便携终端（测试中）
+<details>
+<summary>点击展开</summary>
+<br>
 
-I've added several features so that you no longer need to open the terminal for management—at least for most tasks.
+理论上就是一个Powershell  
+添加了自动 `scoop` 前缀模式（可开关）  
+输入Scoop命令时可以省略 `scoop` 五个字母和一个空格。~~（气笑了）~~<br>
+![Scoop Commands Input Field](E:/DEVELOP/Rscoop12/Rscoop-k/docs/assets/images/CommandsInput.png)
 
-There are plans to introduce a "scheduled update" feature in the future, but for now, the current version should be sufficient. I'll test it for a few days to see if there are any bugs.
+**注意：**
+部分情况GUI不能显示一些错误信息，在各种类终端界面都有这个问题。
+>位于“诊断”页面
+</details>
 
+##
 
-### To the upstream developer:
+### 🗒️ Scoop 配置文件编辑器
 
-If you happen to come across my fork—
+<details>
+<summary>点击展开</summary>
+<br>
 
-Thank you for providing a relatively complete GUI. I've attempted to add some features to enhance its management capabilities.
+添加了Scoop配置管理组件，快速更改Scoop config文件内容
 
-However, the vast majority of it was AI-generated! Therefore, I will not submit a pull request. If any of the features I've added are useful to you, feel free to pull them directly or implement them in a more standardized way into your project.
+![ScoopConfig](docs/assets/images/ScoopConfig.png)
+>位于“诊断”页面
+</details>
+
+##
+
+### ✨ 更好的软件包信息界面
+
+<details>
+<summary>点击展开</summary>
+<br>
+
+添加了“更改仓库”功能，用于解决 Bucket 失效/改名/调试等问题。
+
+为“更新”与“卸载”添加二次确认按钮，防止误操作。
+
+同时对上游`OperationModal`进行了重构，现支持单个面板最小化。
+
+**注意：** 多实例最小化组件 暂时没有解决的头绪，非常不建议同时调用多个Scoop运行，最小化仅用于临时查看其他信息。
+
+![PackageInfo](./docs/assets/images/Packageinfo.gif)
+
+</details>
+
+##
+
+### ⚙️ Scoop 路径自动识别
+
+<details>
+<summary>点击展开</summary>
+<br>
+
+现在软件可以自动识别Scoop路径，  
+并检测Scoop目录结构是否符合GUI预期，防止出现潜在的问题（未经广泛测试）
+
+![AutoDetect](docs/assets/images/AutoDetect.png)
+>位于“设置”页面的“管理”分页
+</details>
+
+##
+
+### 🔀 更新通道切换
+
+<details>
+<summary>点击展开</summary>
+<br>
+
+仅供测试，弄出来主要还是练手。Action 工作流经常看的我头大...
+
+**注意：** 切换通道后需要重启才能正确获取更新信息。
+
+![UpdateChannel](docs/assets/images/UpdateChannel.png)
+
+</details>
+
+##
+
+### 💼 Rscoop 配置管理（测试）
+<details>
+<summary>点击展开</summary>
+<br>
+
+完善了软件的Tauri Store插件使用，现在数据会保存在[本地](C:\Users\x1852\AppData\Roaming\com.rscoop.app)
+
+可以调整 Rscoop 日志的保存时间、删除 Rscoop 产生的配置与缓存文件
+**不会**修改 Scoop 本体的任何数据。
+
+![RscoopData](docs/assets/images/RscoopData.png)
+
+</details>
+
+##
+
+### ⬆️ 全局更新按钮
+<details>
+<summary>点击展开</summary>
+<br>
+
+懒人专用，会全局在右下角显示“全部更新”的动画按钮 ~~,动画很Q弹~~。
+当然 Rscoop 目前已实现定时自动 仓库/软件包 更新（由原作者AmarBego添加），所以我提供了这个按钮显示的开关。
+
+![UpdateAllButton](docs/assets/images/UpdateAllButton.png)
+
+</details>
+
+##
+
+### ✨ 大量 UI/结构/逻辑 调整
+
+<details>
+<summary>点击展开</summary>
+<br>
+
+太多了这里就不说了，也是因为太多个性化的设置导致我不想提交PR到上游。  
+再次感谢AmarBego提供了拥有完善的基础功能的Rscoop。
+
+</details>

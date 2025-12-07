@@ -390,7 +390,7 @@
   "settings": {
     "about": {
       "check_now": "Check Now",
-      "check_now_note": "Note: Updates are checked automatically every 24 hours",
+      "check_now_note": "Note: Rscoop needs to be restarted after changing the update channel",
       "checking_for_updates": "Checking for updates...",
       "config_error": "Configuration Error",
       "config_reload_failed": "Failed to reload update configuration. Some settings may not take effect until restart.",
