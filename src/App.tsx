@@ -519,10 +519,12 @@ function App() {
                     </div>
                 </div>
                 {/* Update ALL floating button in the bottom-right corner */}
-                <AnimatedButton
-                    onClick={handleUpdateAll}
-                    initialState="circle"
-                />
+                <Show when={settings.ui.showGlobalUpdateButton}>
+                  <AnimatedButton
+                      onClick={handleUpdateAll}
+                      initialState="circle"
+                  />
+                </Show>
                 <DebugModal />
                 <OperationModal
                     title={packageOperations.operationTitle()}

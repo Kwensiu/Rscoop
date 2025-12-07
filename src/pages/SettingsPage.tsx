@@ -11,6 +11,7 @@ import AutoCleanupSettings from "../components/page/settings/AutoCleanupSettings
 import BucketAutoUpdateSettings from "../components/page/settings/BucketAutoUpdateSettings";
 import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSettings";
 import ThemeSettings from "../components/page/settings/ThemeSettings";
+import UISettings from "../components/page/settings/UI Settings";
 import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
 import AppDataManagement from "../components/page/settings/AppDataManagement";
 import heldStore from "../stores/held";
@@ -79,7 +80,7 @@ function SettingsPage(props: SettingsPageProps) {
                 <div class="space-y-6">
                     {/* Automation Tab */}
                     <Show when={activeTab() === 'automation'}>
-                        <div class="space-y-8">
+                        <div class="space-y-6">
                             <AutoCleanupSettings />
                             <BucketAutoUpdateSettings />
                         </div>
@@ -87,7 +88,7 @@ function SettingsPage(props: SettingsPageProps) {
 
                     {/* Management Tab */}
                     <Show when={activeTab() === 'management'}>
-                        <div class="space-y-8">
+                        <div class="space-y-6">
                             <ScoopConfiguration />
 
                             <HeldPackagesManagement
@@ -99,19 +100,20 @@ function SettingsPage(props: SettingsPageProps) {
 
                     {/* Security Tab */}
                     <Show when={activeTab() === 'security'}>
-                        <div class="space-y-8">
+                        <div class="space-y-6">
                             <VirusTotalSettings />
                         </div>
                     </Show>
 
                     {/* Window & UI Tab */}
                     <Show when={activeTab() === 'window'}>
-                        <div class="space-y-8">
+                        <div class="space-y-6">
                             <ThemeSettings />
                             <WindowBehaviorSettings />
                             <StartupSettings />
                             <DefaultLaunchPageSettings />
                             <DebugSettings />
+                                                    <UISettings />
                         </div>
                     </Show>
 

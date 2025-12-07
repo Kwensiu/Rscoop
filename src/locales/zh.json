@@ -440,14 +440,14 @@
       "clearing": "正在清理",
       "data_directory": "数据目录",
       "description": "管理Rscoop产生的数据文件",
+      "load_error": "无法加载应用数据信息",
       "log_directory": "Log 目录",
       "log_retention": "Log 保留",
       "log_retention_description": "更改Rscoop日志文件的保留时间",
+      "log_retention_error": "设置日志保留天数失败",
       "open_directory": "打开目录",
       "sure": "确认？",
-      "title": "Rscoop 数据",
-      "load_error": "无法加载应用数据信息",
-      "log_retention_error": "设置日志保留天数失败"
+      "title": "Rscoop 数据"
     },
     "auto_cleanup": {
       "clean_old_versions": "清理旧版本",
@@ -543,6 +543,13 @@
       "title": "外观"
     },
     "title": "设置",
+    "ui": {
+      "UDA_botton_description": "更改全局“全部更新”按钮的可见性",
+      "UDA_botton_title": "全局更新按钮",
+      "description": "自定义界面元素的显示",
+      "show_global_update_button": "显示全局更新按钮",
+      "title": "界面设置"
+    },
     "virustotal": {
       "api_key": "VirusTotal API 密钥",
       "api_key_placeholder": "输入您的 API 密钥",

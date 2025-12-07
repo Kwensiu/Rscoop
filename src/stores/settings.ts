@@ -33,6 +33,9 @@ interface Settings {
     channel: 'stable' | 'test';
   };
   defaultLaunchPage: View;
+  ui: {
+    showGlobalUpdateButton: boolean;
+  };
 }
 
 const defaultSettings: Settings = {
@@ -62,6 +65,9 @@ const defaultSettings: Settings = {
     channel: "stable",
   },
   defaultLaunchPage: "installed",
+  ui: {
+    showGlobalUpdateButton: true,
+  },
 };
 
 function createSettingsStore() {
@@ -227,7 +233,16 @@ function createSettingsStore() {
     await saveSettings({ defaultLaunchPage: page });
   };
 
-  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setUpdateSettings, setTheme, setDefaultLaunchPage };
+  const setUISettings = async (newUISettings: Partial<Settings['ui']>) => {
+    await saveSettings({
+      ui: {
+        ...settings.ui,
+        ...newUISettings,
+      },
+    });
+  };
+
+  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setUpdateSettings, setTheme, setDefaultLaunchPage, setUISettings };
 }
 
 export default createRoot(createSettingsStore);
