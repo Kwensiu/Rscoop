@@ -110,6 +110,11 @@ pub fn run() {
         .on_page_load(|window, _| {
             cold_start::run_cold_start(window.app_handle().clone());
             
+            // Initialize update log store
+            if let Err(e) = commands::update_log::initialize_update_log_store(&window.app_handle()) {
+                log::error!("Failed to initialize update log store: {}", e);
+            }
+            
             // Perform scheduled WebView cleanup on startup
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(3)); // Wait for app to fully load
@@ -200,7 +205,11 @@ pub fn run() {
             commands::startup::set_auto_start_enabled,
             cold_start::is_cold_start_ready,
             tray::refresh_tray_apps_menu,
-            commands::update_config::reload_update_config
+            commands::update_config::reload_update_config,
+            commands::update_log::get_update_logs,
+            commands::update_log::get_all_update_logs,
+            commands::update_log::add_update_log_entry,
+            commands::update_log::get_logs_by_type
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -375,13 +384,25 @@ fn start_background_tasks(app_handle: tauri::AppHandle) {
 async fn run_auto_update(app_handle: &tauri::AppHandle, run_started_at: u64) {
     log::info!("Starting auto bucket update task");
     
-    // Notify UI that the update process is startin
-    if let Some(window) = app_handle.get_webview_window("main") {
-        let _ = window.emit("auto-operation-start", "Updating buckets...");
-        let _ = window.emit("operation-output", serde_json::json!({
-            "line": "Starting automatic bucket update...",
-            "source": "stdout"
-        }));
+    // Check if silent update is enabled
+    let silent_update_enabled = commands::settings::get_config_value(
+        app_handle.clone(),
+        "buckets.silentUpdateEnabled".to_string(),
+    )
+    .ok()
+    .flatten()
+    .and_then(|v| v.as_bool())
+    .unwrap_or(false);
+
+    // Notify UI that the update process is starting only if not silent update
+    if !silent_update_enabled {
+        if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.emit("auto-operation-start", "Updating buckets...");
+            let _ = window.emit("operation-output", serde_json::json!({
+                "line": "Starting automatic bucket update...",
+                "source": "stdout"
+            }));
+        }
     }
 
     // Update Buckets
@@ -400,7 +421,7 @@ async fn run_auto_update(app_handle: &tauri::AppHandle, run_started_at: u64) {
                     };
                     
                     let _ = window.emit("operation-output", serde_json::json!({
-                        "line": line,
+                        "line": line.clone(),
                         "source": if result.success { "stdout" } else { "stderr" }
                     }));
                 }
@@ -428,8 +449,8 @@ async fn run_auto_update(app_handle: &tauri::AppHandle, run_started_at: u64) {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-            if auto_update_packages {
-                update_packages_after_buckets(app_handle).await;
+                if auto_update_packages {
+                update_packages_after_buckets(app_handle, silent_update_enabled).await;
             }
         }
         Err(e) => {
@@ -458,44 +479,91 @@ async fn run_auto_update(app_handle: &tauri::AppHandle, run_started_at: u64) {
 }
 
 // Update packages after updating buckets
-async fn update_packages_after_buckets(app_handle: &tauri::AppHandle) {
+async fn update_packages_after_buckets(app_handle: &tauri::AppHandle, silent_update_enabled: bool) {
     log::info!("Starting auto package update after bucket refresh");
     
-    if let Some(window) = app_handle.get_webview_window("main") {
-        let _ = window.emit("auto-operation-start", "Updating packages...");
-        let _ = window.emit("operation-output", serde_json::json!({
-            "line": "Starting automatic package update...",
-            "source": "stdout"
-        }));
+    let mut package_update_logs = Vec::new();
+    
+    // Notify UI that package update is starting only if not silent update
+    if !silent_update_enabled {
+        if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.emit("auto-operation-start", "Updating packages...");
+            let _ = window.emit("operation-output", serde_json::json!({
+                "line": "Starting automatic package update...",
+                "source": "stdout"
+            }));
+        }
     }
 
     let state = app_handle.state::<state::AppState>();
     match commands::update::update_all_packages_headless(app_handle.clone(), state).await {
         Ok(_) => {
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.emit("operation-output", serde_json::json!({
-                    "line": "Package update completed successfully.",
-                    "source": "stdout"
-                }));
-                
-                let _ = window.emit("operation-finished", serde_json::json!({
-                    "success": true,
-                    "message": "Automatic package update completed successfully"
-                }));
+            let log_line = "Package update completed successfully.";
+            package_update_logs.push(log_line.to_string());
+            
+            // Notify UI of success only if not silent update
+            if !silent_update_enabled {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.emit("operation-output", serde_json::json!({
+                        "line": log_line,
+                        "source": "stdout"
+                    }));
+                    
+                    let _ = window.emit("operation-finished", serde_json::json!({
+                        "success": true,
+                        "message": "Automatic package update completed successfully"
+                    }));
+                }
+            }
+            
+            // Create package update log entry
+            let package_log_entry = commands::update_log::UpdateLogEntry {
+                timestamp: chrono::Utc::now(),
+                operation_type: "package".to_string(),
+                operation_result: "success".to_string(),
+                success_count: 1,
+                total_count: 1,
+                details: package_update_logs,
+            };
+            
+            // Add to log store
+            if let Err(e) = commands::update_log::get_log_store().add_log_entry(package_log_entry) {
+                log::error!("Failed to save package update log: {}", e);
             }
         }
         Err(e) => {
             log::warn!("Auto package headless update failed: {}", e);
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.emit("operation-output", serde_json::json!({
-                    "line": format!("Error: {}", e),
-                    "source": "stderr"
-                }));
-                
-                let _ = window.emit("operation-finished", serde_json::json!({
-                    "success": false,
-                    "message": format!("Automatic package update failed: {}", e)
-                }));
+            let error_line = format!("Error: {}", e);
+            package_update_logs.push(error_line.clone());
+            
+            // Notify UI of error only if not silent update
+            if !silent_update_enabled {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.emit("operation-output", serde_json::json!({
+                        "line": error_line,
+                        "source": "stderr"
+                    }));
+                    
+                    let _ = window.emit("operation-finished", serde_json::json!({
+                        "success": false,
+                        "message": format!("Automatic package update failed: {}", e)
+                    }));
+                }
+            }
+            
+            // Create error log entry
+            let error_log_entry = commands::update_log::UpdateLogEntry {
+                timestamp: chrono::Utc::now(),
+                operation_type: "package".to_string(),
+                operation_result: "failed".to_string(),
+                success_count: 0,
+                total_count: 1,
+                details: package_update_logs,
+            };
+            
+            // Add to log store
+            if let Err(e) = commands::update_log::get_log_store().add_log_entry(error_log_entry) {
+                log::error!("Failed to save package update error log: {}", e);
             }
         }
     }

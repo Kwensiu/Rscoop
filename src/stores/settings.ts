@@ -29,6 +29,7 @@ interface Settings {
   buckets: {
     autoUpdateInterval: string; // "off" | "1h" | "6h" | "24h"
     autoUpdatePackagesEnabled: boolean;
+    silentUpdateEnabled: boolean;
   };
   update: {
     channel: 'stable' | 'test';
@@ -61,6 +62,7 @@ const defaultSettings: Settings = {
   buckets: {
     autoUpdateInterval: "off",
     autoUpdatePackagesEnabled: false,
+    silentUpdateEnabled: false,
   },
   update: {
     channel: "stable",
@@ -146,6 +148,7 @@ function createSettingsStore() {
             buckets: {
               ...defaultSettings.buckets,
               ...stored.buckets,
+              silentUpdateEnabled: stored.buckets?.silentUpdateEnabled ?? defaultSettings.buckets.silentUpdateEnabled,
             },
             update: {
               ...defaultSettings.update,

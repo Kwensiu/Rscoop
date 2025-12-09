@@ -21,6 +21,7 @@ pub mod status;
 pub mod uninstall;
 pub mod update;
 pub mod update_config;
+pub mod update_log;
 pub mod updates;
 pub mod version;
 pub mod virustotal;

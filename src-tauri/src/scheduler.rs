@@ -60,13 +60,27 @@ pub fn start_background_tasks(app: AppHandle) {
                 log::info!("Auto bucket update task running (interval='{}', seconds={}, elapsed={})", interval_raw, interval_secs, elapsed);
                 let run_started_at = now;
                 
-                // Emit start event to show modal
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.emit("auto-operation-start", "Updating buckets...");
-                    let _ = window.emit("operation-output", serde_json::json!({
-                        "line": "Starting automatic bucket update...",
-                        "source": "stdout"
-                    }));
+                // Check if silent auto update is enabled
+                let silent_auto_update = commands::settings::get_config_value(
+                    app.clone(),
+                    "buckets.silentUpdateEnabled".to_string(),
+                )
+                .ok()
+                .flatten()
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+                
+                // Emit start event to show modal (only if not in silent mode)
+                if !silent_auto_update {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.emit("auto-operation-start", "Updating buckets...");
+                        let _ = window.emit("operation-output", serde_json::json!({
+                            "line": "Starting automatic bucket update...",
+                            "source": "stdout"
+                        }));
+                    }
+                } else {
+                    log::info!("Running silent auto update - no UI notifications will be shown");
                 }
                 
                 // Get AppState instance to pass to update_all_buckets
@@ -80,23 +94,35 @@ pub fn start_background_tasks(app: AppHandle) {
                             results.len()
                         );
                         
-                        // Stream results to modal
-                        if let Some(window) = app.get_webview_window("main") {
-                            for result in &results {
-                                let line = if result.success {
-                                    format!("✓ Updated bucket: {}", result.bucket_name)
-                                } else {
-                                    format!("✗ Failed to update {}: {}", result.bucket_name, result.message)
-                                };
-                                let _ = window.emit("operation-output", serde_json::json!({
-                                    "line": line,
-                                    "source": if result.success { "stdout" } else { "stderr" }
+                        // Stream results to modal (only if not in silent mode)
+                        if !silent_auto_update {
+                            if let Some(window) = app.get_webview_window("main") {
+                                for result in &results {
+                                    let line = if result.success {
+                                        format!("✓ Updated bucket: {}", result.bucket_name)
+                                    } else {
+                                        format!("✗ Failed to update {}: {}", result.bucket_name, result.message)
+                                    };
+                                    let _ = window.emit("operation-output", serde_json::json!({
+                                        "line": line,
+                                        "source": if result.success { "stdout" } else { "stderr" }
+                                    }));
+                                }
+                                let _ = window.emit("operation-finished", serde_json::json!({
+                                    "success": successes == results.len(),
+                                    "message": format!("Bucket update completed: {} of {} succeeded", successes, results.len())
                                 }));
                             }
-                            let _ = window.emit("operation-finished", serde_json::json!({
-                                "success": successes == results.len(),
-                                "message": format!("Bucket update completed: {} of {} succeeded", successes, results.len())
-                            }));
+                        } else {
+                            // 在静默模式下记录结果到日志
+                            for result in &results {
+                                if result.success {
+                                    log::info!("✓ Updated bucket: {}", result.bucket_name);
+                                } else {
+                                    log::warn!("✗ Failed to update {}: {}", result.bucket_name, result.message);
+                                }
+                            }
+                            log::info!("Silent bucket update completed: {} of {} succeeded", successes, results.len());
                         }
                         
                         // Persist last run timestamp (record even if partial successes to avoid hammering)
@@ -119,37 +145,50 @@ pub fn start_background_tasks(app: AppHandle) {
                         if auto_update_packages {
                             log::info!("Auto package update task running after bucket refresh (headless with events)");
                             let state = app.state::<state::AppState>();
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.emit("auto-operation-start", "Updating packages...");
-                                let _ = window.emit("operation-output", serde_json::json!({
-                                    "line": "Starting automatic package update...",
-                                    "source": "stdout"
-                                }));
+                            
+                            // Emit start event for package update (only if not in silent mode)
+                            if !silent_auto_update {
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.emit("auto-operation-start", "Updating packages...");
+                                    let _ = window.emit("operation-output", serde_json::json!({
+                                        "line": "Starting automatic package update...",
+                                        "source": "stdout"
+                                    }));
+                                }
                             }
+                            
                             match commands::update::update_all_packages_headless(app.clone(), state).await {
                                 Ok(_) => {
-                                    if let Some(window) = app.get_webview_window("main") {
-                                        let _ = window.emit("operation-output", serde_json::json!({
-                                            "line": "Package update completed successfully.",
-                                            "source": "stdout"
-                                        }));
-                                        let _ = window.emit("operation-finished", serde_json::json!({
-                                            "success": true,
-                                            "message": "Automatic package update completed successfully"
-                                        }));
+                                    if !silent_auto_update {
+                                        if let Some(window) = app.get_webview_window("main") {
+                                            let _ = window.emit("operation-output", serde_json::json!({
+                                                "line": "Package update completed successfully.",
+                                                "source": "stdout"
+                                            }));
+                                            let _ = window.emit("operation-finished", serde_json::json!({
+                                                "success": true,
+                                                "message": "Automatic package update completed successfully"
+                                            }));
+                                        }
+                                    } else {
+                                        log::info!("Silent package update completed successfully");
                                     }
                                 }
                                 Err(e) => {
                                     log::warn!("Auto package headless update failed: {}", e);
-                                    if let Some(window) = app.get_webview_window("main") {
-                                        let _ = window.emit("operation-output", serde_json::json!({
-                                            "line": format!("Error: {}", e),
-                                            "source": "stderr"
-                                        }));
-                                        let _ = window.emit("operation-finished", serde_json::json!({
-                                            "success": false,
-                                            "message": format!("Automatic package update failed: {}", e)
-                                        }));
+                                    if !silent_auto_update {
+                                        if let Some(window) = app.get_webview_window("main") {
+                                            let _ = window.emit("operation-output", serde_json::json!({
+                                                "line": format!("Error: {}", e),
+                                                "source": "stderr"
+                                            }));
+                                            let _ = window.emit("operation-finished", serde_json::json!({
+                                                "success": false,
+                                                "message": format!("Automatic package update failed: {}", e)
+                                            }));
+                                        }
+                                    } else {
+                                        log::warn!("Silent package update failed: {}", e);
                                     }
                                 }
                             }
@@ -158,16 +197,20 @@ pub fn start_background_tasks(app: AppHandle) {
                     Err(e) => {
                         log::warn!("Auto bucket update failed: {}", e);
                         
-                        // Emit failure to modal
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.emit("operation-output", serde_json::json!({
-                                "line": format!("Error: {}", e),
-                                "source": "stderr"
-                            }));
-                            let _ = window.emit("operation-finished", serde_json::json!({
-                                "success": false,
-                                "message": format!("Bucket update failed: {}", e)
-                            }));
+                        // Emit failure to modal (only if not in silent mode)
+                        if !silent_auto_update {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.emit("operation-output", serde_json::json!({
+                                    "line": format!("Error: {}", e),
+                                    "source": "stderr"
+                                }));
+                                let _ = window.emit("operation-finished", serde_json::json!({
+                                    "success": false,
+                                    "message": format!("Bucket update failed: {}", e)
+                                }));
+                            }
+                        } else {
+                            log::warn!("Silent bucket update failed: {}", e);
                         }
                         
                         // Even on failure, set timestamp to avoid rapid retry storms
@@ -179,19 +222,12 @@ pub fn start_background_tasks(app: AppHandle) {
                     }
                 }
                 // Loop again immediately to compute next run
-                continue;
+            } else {
+                // Sleep until the next check (but not longer than 1 hour to stay responsive to setting changes)
+                let sleep_secs = interval_secs.saturating_sub(elapsed).min(3600);
+                log::trace!("[scheduler] sleeping for {} seconds", sleep_secs);
+                tokio::time::sleep(Duration::from_secs(sleep_secs)).await;
             }
-
-            // Not yet due: sleep in chunks until due or interval changes
-            let remaining = interval_secs - elapsed; // > 0 here
-            let chunk = if remaining <= 60 { remaining } else { 60 }; // Max 60s granularity
-            let next_run_at = now + remaining;
-            log::trace!(
-                "[scheduler] next run due in {}s (at {}), interval='{}', remaining chunk={}s",
-                remaining, next_run_at, interval_raw, chunk
-            );
-            tokio::time::sleep(Duration::from_secs(chunk)).await;
-            // After sleep, loop re-evaluates (interval or last_ts may have changed)
         }
     });
 }

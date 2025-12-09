@@ -120,6 +120,23 @@ export default function BucketAutoUpdateSettings() {
                 <div class="divider my-4"></div>
                 <div class="flex items-center justify-between">
                     <div class="flex flex-col">
+                        <span class="text-sm font-medium">{t("settings.bucket_auto_update.silent_update")}</span>
+                        <span class="text-[11px] text-base-content/60">{t("settings.bucket_auto_update.silent_update_description")}</span>
+                    </div>
+                    <label class="label cursor-pointer">
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-primary"
+                            checked={settings.buckets.silentUpdateEnabled}
+                            onChange={async (e) => {
+                                await setBucketSettings({ silentUpdateEnabled: e.currentTarget.checked });
+                                await invoke("set_config_value", { key: "buckets.silentUpdateEnabled", value: e.currentTarget.checked });
+                            }}
+                        />
+                    </label>
+                </div>
+                <div class="flex items-center justify-between mt-4">
+                    <div class="flex flex-col">
                         <span class="text-sm font-medium">{t("settings.bucket_auto_update.auto_update_packages")}</span>
                         <span class="text-[11px] text-base-content/60">{t("settings.bucket_auto_update.auto_update_packages_description")}</span>
                     </div>

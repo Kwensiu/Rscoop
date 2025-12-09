@@ -173,7 +173,10 @@ function App() {
             try {
                 const unlisten = await listen<string>("auto-operation-start", (event) => {
                     info(`Auto-operation started: ${event.payload}`);
-                    setAutoUpdateTitle(event.payload);
+                    // 检查是否启用了静默自动更新
+                    if (!settings.buckets.silentUpdateEnabled) {
+                        setAutoUpdateTitle(event.payload);
+                    }
                 });
                 unlistenFunctions.push(unlisten);
             } catch (e) {
@@ -225,18 +228,13 @@ function App() {
             }
 
             return () => {
-                // Clean up all listeners when component unmounts
-                unlistenFunctions.forEach(unlisten => {
-                    try {
-                        unlisten();
-                    } catch (e) {
-                        logError(`Failed to unlisten: ${e}`);
-                    }
-                });
+                // Cleanup all listeners on unmount
+                unlistenFunctions.forEach(unlisten => unlisten());
             };
         };
 
-        const cleanup = await setupColdStartListeners();
+        const cleanupListeners = await setupColdStartListeners();
+        onCleanup(cleanupListeners);
 
         // After listeners are in place, perform fast local checks (no network) sequentially
         let autoStartEnabled = false;
@@ -360,7 +358,7 @@ function App() {
         return () => {
             clearTimeout(timeoutId);
             clearTimeout(immediateFallback);
-            cleanup();
+            cleanupListeners();
         };
     });
 
