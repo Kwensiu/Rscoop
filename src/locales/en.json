@@ -449,7 +449,7 @@
       "log_retention_error": "Failed to set log retention days",
       "open_directory": "Open Directory",
       "sure": "Sure?",
-      "title": "Rscoop Data (Test)"
+      "title": "Rscoop Data (Beta)"
     },
     "auto_cleanup": {
       "clean_old_versions": "Clean Old Versions",
@@ -584,7 +584,7 @@
       "success": "Success",
       "success_rate": "Success Rate",
       "time": "Time",
-      "title": "Update History",
+      "title": "Update History (Beta)",
       "type": "Type",
       "view_details": "View Details"
     },
