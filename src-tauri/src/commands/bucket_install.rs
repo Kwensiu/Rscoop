@@ -27,6 +27,7 @@ pub struct BucketInstallResult {
 fn get_buckets_dir() -> Result<PathBuf, String> {
     // Use fallback method to get scoop directory
     let scoop_dir = utils::get_scoop_root_fallback();
+    log::debug!("Using buckets directory: {}", scoop_dir.join("buckets").display());
     Ok(scoop_dir.join("buckets"))
 }
 
@@ -490,6 +491,10 @@ fn update_bucket_sync(
 #[command]
 pub async fn update_all_buckets() -> Result<Vec<BucketInstallResult>, String> {
     log::info!("Updating all buckets (auto-update task)");
+    
+    // Pre-fetch and cache the scoop root to avoid repeated path detection
+    let _scoop_root = utils::get_scoop_root_fallback();
+    
     let buckets_dir = match get_buckets_dir() {
         Ok(p) => p,
         Err(e) => return Err(format!("Failed to resolve buckets directory: {}", e)),
@@ -530,6 +535,10 @@ pub async fn update_all_buckets() -> Result<Vec<BucketInstallResult>, String> {
     }
 
     log::info!("Completed updating {} buckets", results.len());
+    
+    // Clear the scoop root cache after batch update to allow for fresh detection next time
+    crate::utils::clear_scoop_root_cache();
+    
     Ok(results)
 }
 

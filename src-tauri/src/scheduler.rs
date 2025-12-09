@@ -94,6 +94,40 @@ pub fn start_background_tasks(app: AppHandle) {
                             results.len()
                         );
                         
+                        // Prepare details for log entry
+                        let mut update_details = Vec::new();
+                        for result in &results {
+                            let detail = if result.success {
+                                format!("✓ Updated bucket: {}", result.bucket_name)
+                            } else {
+                                format!("✗ Failed to update {}: {}", result.bucket_name, result.message)
+                            };
+                            update_details.push(detail.clone());
+                        }
+                        
+                        // Create bucket update log entry
+                        let operation_result = if successes == results.len() {
+                            "success"
+                        } else if successes > 0 {
+                            "partial"
+                        } else {
+                            "failed"
+                        };
+                        
+                        let bucket_log_entry = crate::commands::update_log::UpdateLogEntry {
+                            timestamp: chrono::Utc::now(),
+                            operation_type: "bucket".to_string(),
+                            operation_result: operation_result.to_string(),
+                            success_count: successes as u32,
+                            total_count: results.len() as u32,
+                            details: update_details,
+                        };
+                        
+                        // Add to log store
+                        if let Err(e) = crate::commands::update_log::get_log_store().add_log_entry(bucket_log_entry) {
+                            log::error!("Failed to save bucket update log: {}", e);
+                        }
+                        
                         // Stream results to modal (only if not in silent mode)
                         if !silent_auto_update {
                             if let Some(window) = app.get_webview_window("main") {

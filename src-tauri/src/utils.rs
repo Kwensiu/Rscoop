@@ -545,8 +545,26 @@ pub fn is_valid_scoop_candidate(path: &PathBuf) -> bool {
     has_apps || has_buckets
 }
 
+use std::sync::{Mutex, OnceLock};
+
+// Global cache for Scoop root to avoid repeated detection
+static SCOOP_ROOT_CACHE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+
 /// Get Scoop root directory as fallback when AppState is not available
 pub fn get_scoop_root_fallback() -> PathBuf {
+    // Try to get from cache first
+    let cache = SCOOP_ROOT_CACHE.get_or_init(|| Mutex::new(None));
+    
+    // Check if we have a cached value
+    {
+        let cached_value = cache.lock().unwrap();
+        if let Some(ref path) = *cached_value {
+            log::debug!("Using cached Scoop root: {}", path.display());
+            return path.clone();
+        }
+    }
+    
+    // No cached value, perform detection
     let candidates = build_candidate_list(Vec::<PathBuf>::new());
 
     if let Some(best) = select_best_scoop_root(candidates, None) {
@@ -557,11 +575,35 @@ pub fn get_scoop_root_fallback() -> PathBuf {
             best.has_buckets_dir,
             best.installed_count
         );
+        
+        // Cache the result
+        {
+            let mut cached_value = cache.lock().unwrap();
+            *cached_value = Some(best.path.clone());
+        }
+        
         return best.path;
     }
 
     log::warn!("Could not find Scoop root directory, using default");
-    PathBuf::from("C:\\scoop")
+    let default_path = PathBuf::from("C:\\scoop");
+    
+    // Cache the default as well
+    {
+        let mut cached_value = cache.lock().unwrap();
+        *cached_value = Some(default_path.clone());
+    }
+    
+    default_path
+}
+
+/// Clear the Scoop root cache (useful when Scoop configuration changes)
+pub fn clear_scoop_root_cache() {
+    if let Some(cache) = SCOOP_ROOT_CACHE.get() {
+        let mut cached_value = cache.lock().unwrap();
+        *cached_value = None;
+        log::info!("Scoop root cache cleared");
+    }
 }
 
 #[derive(Debug)]
