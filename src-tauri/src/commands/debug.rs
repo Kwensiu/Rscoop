@@ -644,27 +644,40 @@ pub fn get_app_logs() -> Result<String, String> {
 /// Reads the current application log file
 #[tauri::command]
 pub fn read_app_log_file() -> Result<String, String> {
-    // Determine log file path - use LOCALAPPDATA\rscoop\logs\rscoop.log on Windows
-    let log_file = if let Some(local_data) = dirs::data_local_dir() {
-        local_data.join(OLD_APP_DIR).join("logs").join("rscoop.log")
-    } else {
-        PathBuf::from("./logs/rscoop.log")
-    };
+    // Determine log file path - check both new and old locations
+    let log_files = vec![
+        // Try new Tauri app data directory first (Roaming)
+        dirs::data_dir().and_then(|d| Some(d.join(TAURI_APP_ID).join("logs").join("rscoop.log"))),
+        // Fallback to old rscoop directory (Local)
+        dirs::data_local_dir().and_then(|d| Some(d.join(OLD_APP_DIR).join("logs").join("rscoop.log"))),
+    ];
 
-    // Read the log file
-    match fs::read_to_string(&log_file) {
-        Ok(content) => Ok(content),
-        Err(e) => {
-            if !log_file.exists() {
-                Ok(format!(
-                    "Log file not found at: {}\n\nLogs will be created after the first run.",
-                    log_file.display()
-                ))
-            } else {
-                Err(format!("Failed to read log file: {}", e))
+    // Try each potential log file location
+    for log_file_option in log_files {
+        if let Some(log_file) = log_file_option {
+            match fs::read_to_string(&log_file) {
+                Ok(content) => return Ok(content),
+                Err(_) => continue, // Try next location
             }
         }
     }
+
+    // If all locations failed, try to provide helpful message
+    let first_location = dirs::data_dir()
+        .map(|d| d.join(TAURI_APP_ID).join("logs").join("rscoop.log"))
+        .unwrap_or_else(|| PathBuf::from("./logs/rscoop.log"));
+
+    Ok(format!(
+        "Log file not found at any expected location.\nChecked:\n- {}\n- {}\n\nLogs will be created after the first run.",
+        dirs::data_dir()
+            .map(|d| d.join(TAURI_APP_ID).join("logs").join("rscoop.log"))
+            .unwrap_or_else(|| PathBuf::from("./logs/rscoop.log"))
+            .display(),
+        dirs::data_local_dir()
+            .map(|d| d.join(OLD_APP_DIR).join("logs").join("rscoop.log"))
+            .unwrap_or_else(|| PathBuf::from("./logs/rscoop.log"))
+            .display()
+    ))
 }
 
 /// Final cleanup to be called during application shutdown
