@@ -125,7 +125,7 @@ Rscoop 是一个开源、轻量、全面的 Scoop GUI管理器项目，上游作
 <summary>点击展开</summary>
 <br>
 
-完善了软件的Tauri Store插件使用，现在数据会保存在[本地](C:\Users\x1852\AppData\Roaming\com.rscoop.app)  
+完善了软件的Tauri Store插件使用，现在数据会保存在本地
 可以调整 Rscoop 日志的保存时间、删除 Rscoop 产生的配置与缓存文件  
 **不会**修改 Scoop 本体的任何数据。<br>
 
