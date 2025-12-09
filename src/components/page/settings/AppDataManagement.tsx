@@ -79,21 +79,20 @@ export default function AppDataManagement() {
             setIsClearing(true);
 
             try {
-                // Clear both regular application data and Tauri store data
-                await invoke("clear_application_data");
-                await invoke("clear_store_data");
-
-                // 只有在清理操作真正完成后才显示成功消息
+                // 使用新的统一清理命令
+                await invoke("factory_reset");
+                
+                // 显示成功消息
                 setClearSuccess(true);
-
-                // 3秒后重启应用
+                
+                // 1秒后重启应用
                 setTimeout(async () => {
                     await relaunch();
-                }, 3000);
+                }, 1000);
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                setClearError(t("settings.app_data.clear_error") + ": " + errorMessage);
-                setIsClearing(false);  // 只有在失败时才重置清理状态
+                // 错误处理
+                setClearError(t("settings.app_data.clear_error") + ": " + error.message);
+                setIsClearing(false);
             }
         } else {
             // 第一次点击 - 显示确认

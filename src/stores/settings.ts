@@ -44,8 +44,8 @@ const defaultSettings: Settings = {
     autoScanOnInstall: false,
   },
   window: {
-    closeToTray: true,
-    firstTrayNotificationShown: false,
+    closeToTray: false,
+    firstTrayNotificationShown: true,
   },
   theme: 'dark',
   debug: {
@@ -101,6 +101,23 @@ function createSettingsStore() {
 
   const getInitialSettings = async (): Promise<Settings> => {
     const storeInstance = await initStore();
+    
+    // Check for factory reset marker
+    const needsFactoryReset = await checkFactoryReset();
+    
+    if (needsFactoryReset) {
+      console.log('Factory reset detected, loading default settings');
+      // Clear any existing settings and return defaults
+      if (storeInstance) {
+        try {
+          await storeInstance.delete('settings');
+        } catch (error) {
+          console.error('Error clearing settings during factory reset:', error);
+        }
+      }
+      return defaultSettings;
+    }
+    
     if (storeInstance) {
       try {
         const stored = await storeInstance.get<Settings>('settings');
@@ -145,6 +162,18 @@ function createSettingsStore() {
       }
     }
     return defaultSettings;
+  };
+
+  const checkFactoryReset = async (): Promise<boolean> => {
+    try {
+      // Check if factory reset marker exists using a Tauri command
+      const { invoke } = await import('@tauri-apps/api/core');
+      const markerExists = await invoke<boolean>('check_factory_reset_marker');
+      return markerExists;
+    } catch (error) {
+      console.error('Error checking factory reset marker:', error);
+      return false;
+    }
   };
 
   const [settings, setSettings] = createStore<Settings>(defaultSettings);

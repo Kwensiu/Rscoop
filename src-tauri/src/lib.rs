@@ -109,6 +109,14 @@ pub fn run() {
         .on_window_event(handle_window_event)
         .on_page_load(|window, _| {
             cold_start::run_cold_start(window.app_handle().clone());
+            
+            // Perform scheduled WebView cleanup on startup
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(3)); // Wait for app to fully load
+                if let Err(e) = commands::debug::perform_scheduled_webview_cleanup() {
+                    log::warn!("Failed to perform scheduled WebView cleanup: {}", e);
+                }
+            });
         })
         .invoke_handler(tauri::generate_handler![
             commands::search::search_scoop,
@@ -180,8 +188,13 @@ pub fn run() {
             commands::debug::get_log_dir_cmd,
             commands::debug::get_log_retention_days,
             commands::debug::set_log_retention_days,
+            commands::debug::check_factory_reset_marker,
             commands::debug::clear_application_data,
             commands::debug::clear_store_data,
+            commands::debug::factory_reset,
+            commands::debug::force_clear_webview_cache,
+            commands::debug::final_cleanup_on_exit,
+            commands::debug::perform_scheduled_webview_cleanup,
             commands::version::check_and_update_version,
             commands::startup::is_auto_start_enabled,
             commands::startup::set_auto_start_enabled,

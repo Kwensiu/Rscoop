@@ -146,8 +146,8 @@
       "cache_is_empty": "Cache is Empty",
       "confirm_deletion": "Confirm Deletion",
       "delete": "Delete",
-      "delete_all": "Are you sure you want to delete all {count} cached files? This action cannot be undone.",
-      "delete_files": "You are about to delete {count} cached file(s) for the following {packageCount} package(s):",
+      "delete_all": "Are you sure you want to delete all {{count}} cached files? This action cannot be undone.",
+      "delete_files": "You are about to delete {{count}} cached file(s) for the following {{packageCount}} package(s):",
       "filter_placeholder": "Filter by name or version...",
       "name": "Name",
       "no_cached_files": "There are no cached package files to manage.",
@@ -413,13 +413,13 @@
       "restart_app": "Restart App",
       "restart_now": "Restart Now",
       "retry": "Retry",
-      "scoop_update_instruction": "Use {code} in your terminal to update.",
+      "scoop_update_instruction": "Use {{code}} in your terminal to update.",
       "timeout_error": "Connection timed out. The server may be unreachable or slow to respond.",
       "update_available": "Update Available!",
-      "update_available_dialog": "Update to {version} is available!\n\nRelease notes: {body}",
+      "update_available_dialog": "Update to {{version}} is available!\n\nRelease notes: {{body}}",
       "update_complete": "Update has been installed successfully. The application needs to restart to apply the changes.",
       "update_failed": "Update Failed",
-      "update_ready": "Version {version} is ready to install.",
+      "update_ready": "Version {{version}} is ready to install.",
       "update_status": "Update Status",
       "update_via_scoop": "This app was installed via Scoop. Please use Scoop to update this application instead.",
       "updates_via_scoop": "Updates via Scoop",
@@ -447,7 +447,7 @@
       "log_retention_error": "Failed to set log retention days",
       "open_directory": "Open Directory",
       "sure": "Sure?",
-      "title": "Rscoop Data"
+      "title": "Rscoop Data (Test)"
     },
     "auto_cleanup": {
       "clean_old_versions": "Clean Old Versions",
@@ -456,10 +456,10 @@
       "clean_outdated_cache_description": "Remove stale downloaded artifacts that are no longer needed, freeing disk space.",
       "description": "Automatically tidy up old package versions and outdated cache assets after install, update, or uninstall operations.",
       "title": "Auto Cleanup",
-      "versions_to_keep": "Versions to Keep: {count}"
+      "versions_to_keep": "Versions to Keep: {{count}}"
     },
     "bucket_auto_update": {
-      "active": "Active: {interval}",
+      "active": "Active: {{interval}}",
       "auto_update_packages": "Auto Update Packages",
       "auto_update_packages_description": "Run full package update after bucket refresh",
       "custom_interval": "Custom Interval",
@@ -474,7 +474,7 @@
       "every_week": "Every Week",
       "every_week_description": "Run once every 7 days",
       "hours": "Hours",
-      "interval_too_short": "Interval too short (min {minSecs}s).",
+      "interval_too_short": "Interval too short (min {{minSecs}}s).",
       "minimum_interval": "Minimum interval is 5 minutes (300 seconds).",
       "minutes": "Minutes",
       "off": "Off",
