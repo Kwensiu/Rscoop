@@ -97,8 +97,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: v${{ github.ref_name }}
-          name: v${{ github.ref_name }}
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           bodyFile: RELEASE_NOTES.md
           draft: false
           prerelease: false
