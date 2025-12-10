@@ -71,12 +71,14 @@ jobs:
         id: previous_tag
         shell: pwsh
         run: |
-          # Get the latest tag
-          $latestTag = git describe --tags --abbrev=0 2>$null
-          if ($latestTag) {
-            "tag=$latestTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          # Get the previous tag
+          $previousTag = git describe --tags --abbrev=0 HEAD^ 2>$null
+          if ($previousTag) {
+            "tag=$previousTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
-            "tag=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            # If no previous tag, use the first commit
+            $firstCommit = git rev-list --max-parents=0 HEAD
+            "tag=$firstCommit" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
       - name: Generate commit list
@@ -86,24 +88,12 @@ jobs:
           $previousTag = "${{ steps.previous_tag.outputs.tag }}"
           $commitMessages = ""
           
-          if ($previousTag) {
-            # Get commits between previous tag and HEAD
-            $commits = git log --pretty=format:"- %s" "$previousTag"..HEAD
-            if ($commits) {
-              $commitMessages = $commits -join "`n"
-            } else {
-              $commitMessages = "No new commits since $previousTag"
-            }
+          # Get commits between previous tag and HEAD with more detailed information
+          $commits = git log --pretty=format:"- %s (%h)" "$previousTag"..HEAD
+          if ($commits) {
+            $commitMessages = $commits -join "`n"
           } else {
-            # If no previous tag, get recent commits
-            $commits = git log --oneline -5
-            if ($commits) {
-              # Format each commit with a dash prefix
-              $formattedCommits = ($commits -split "`n") | ForEach-Object { "- $_" }
-              $commitMessages = $formattedCommits -join "`n"
-            } else {
-              $commitMessages = "No recent commits found"
-            }
+            $commitMessages = "No new commits since $previousTag"
           }
           
           # Escape special characters for YAML
