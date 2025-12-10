@@ -5,9 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::State;
 
-// Constants for retry logic
-const MAX_FILE_RETRIES: u32 = 3;
-const FILE_RETRY_DELAY_MS: u64 = 100;
+// Note: Retry logic constants are defined locally in functions as needed
 
 // Application identifiers
 const TAURI_APP_ID: &str = "com.rscoop.app";
@@ -23,13 +21,10 @@ const WEBVIEW_CLEANUP_MARKER: &str = ".cleanup_webview_on_startup";
 // Backup file extension
 const BACKUP_EXT: &str = ".bak";
 
-// Locked files that should not be removed while app is running
-const LOCKED_FILES: &[&str] = &[
-    SETTINGS_FILE,
-    SIGNALS_FILE,
-    VERSION_FILE,
-    FACTORY_RESET_MARKER,
-];
+// Note: LOCKED_FILES constant has been removed as it was unused
+
+// WebView locked patterns
+const WEBVIEW_LOCKED_PATTERNS: &[&str] = &["LOCK", "LOG", "MANIFEST-", ".log"];
 
 // WebView locked directories
 const WEBVIEW_LOCKED_DIRS: &[&str] = &[
@@ -52,7 +47,7 @@ pub fn get_app_data_dir() -> Result<String, String> {
         }
     }
 
-    // Fallback to the old rscoop directory
+    // Fallback to the old rscoop directory for backward compatibility
     let data_dir = dirs::data_local_dir()
         .and_then(|d| Some(d.join(OLD_APP_DIR)))
         .ok_or("Could not determine data directory")?;
@@ -82,38 +77,33 @@ pub fn set_log_retention_days(days: i32) -> Result<(), String> {
 
 /// Safely removes a file with retry logic
 fn safe_remove_file(file_path: &std::path::Path) -> bool {
+    const MAX_RETRIES: u32 = 3;
+    const RETRY_DELAY_MS: u64 = 100;
+    
     // Skip WebView2 database files completely - they're heavily locked
     if is_webview_locked_file(file_path) {
         log::info!("Skipping WebView2 locked file: {}", file_path.display());
         return false;
     }
-
-    for attempt in 1..=MAX_FILE_RETRIES {
+    
+    for attempt in 1..=MAX_RETRIES {
         match fs::remove_file(file_path) {
             Ok(_) => {
                 log::debug!("Successfully removed file: {}", file_path.display());
                 return true;
             }
             Err(e) => {
-                if attempt == MAX_FILE_RETRIES {
-                    log::debug!(
-                        "Failed to remove file after {} attempts: {} - {}",
-                        MAX_FILE_RETRIES,
-                        file_path.display(),
-                        e
-                    );
+                if attempt == MAX_RETRIES {
+                    log::debug!("Failed to remove file after {} attempts: {} - {}", 
+                               MAX_RETRIES, file_path.display(), e);
                     return false;
                 }
-
-                log::debug!(
-                    "Attempt {} failed to remove file: {} - {}",
-                    attempt,
-                    file_path.display(),
-                    e
-                );
-
+                
+                log::debug!("Attempt {} failed to remove file: {} - {}", 
+                           attempt, file_path.display(), e);
+                
                 // Wait before retrying
-                std::thread::sleep(std::time::Duration::from_millis(FILE_RETRY_DELAY_MS));
+                std::thread::sleep(std::time::Duration::from_millis(RETRY_DELAY_MS));
             }
         }
     }
@@ -122,15 +112,15 @@ fn safe_remove_file(file_path: &std::path::Path) -> bool {
 
 /// Safely removes a directory with retry logic
 fn safe_remove_dir(dir_path: &std::path::Path) -> bool {
-    // Skip WebView2 database directories completely
+    const MAX_RETRIES: u32 = 3;
+    const RETRY_DELAY_MS: u64 = 200;
+    
+    // Skip WebView2 locked directories
     if is_webview_locked_dir(dir_path) {
         log::info!("Skipping WebView2 locked directory: {}", dir_path.display());
         return false;
     }
-
-    const MAX_RETRIES: u32 = 3;
-    const RETRY_DELAY_MS: u64 = 200;
-
+    
     for attempt in 1..=MAX_RETRIES {
         match fs::remove_dir_all(dir_path) {
             Ok(_) => {
@@ -139,34 +129,15 @@ fn safe_remove_dir(dir_path: &std::path::Path) -> bool {
             }
             Err(e) => {
                 if attempt == MAX_RETRIES {
-                    log::debug!(
-                        "Failed to remove directory after {} attempts: {} - {}",
-                        MAX_RETRIES,
-                        dir_path.display(),
-                        e
-                    );
+                    log::debug!("Failed to remove directory after {} attempts: {} - {}", 
+                               MAX_RETRIES, dir_path.display(), e);
                     return false;
                 }
-
-                log::debug!(
-                    "Attempt {} failed to remove directory: {} - {}",
-                    attempt,
-                    dir_path.display(),
-                    e
-                );
-
-                // Try to delete contents individually first
-                if let Ok(entries) = fs::read_dir(dir_path) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let _ = safe_remove_file(&path);
-                        } else if path.is_dir() {
-                            let _ = safe_remove_dir(&path);
-                        }
-                    }
-                }
-
+                
+                log::debug!("Attempt {} failed to remove directory: {} - {}", 
+                           attempt, dir_path.display(), e);
+                
+                // Wait before retrying
                 std::thread::sleep(std::time::Duration::from_millis(RETRY_DELAY_MS));
             }
         }
@@ -174,322 +145,85 @@ fn safe_remove_dir(dir_path: &std::path::Path) -> bool {
     false
 }
 
+/// Checks if a file is a WebView2 locked file
+fn is_webview_locked_file(file_path: &std::path::Path) -> bool {
+    if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
+        WEBVIEW_LOCKED_PATTERNS.iter().any(|pattern| file_name.contains(pattern))
+    } else {
+        false
+    }
+}
+
+/// Checks if a directory is a WebView2 locked directory
+fn is_webview_locked_dir(dir_path: &std::path::Path) -> bool {
+    if let Some(dir_name) = dir_path.file_name().and_then(|n| n.to_str()) {
+        WEBVIEW_LOCKED_DIRS.iter().any(|locked_name| dir_name == *locked_name)
+    } else {
+        false
+    }
+}
+
 /// Clears all application data and cache
 #[tauri::command]
 pub fn clear_application_data() -> Result<(), String> {
-    log::info!("Starting application data cleanup");
-
-    let mut total_cleared = 0;
-    let mut failed_files = Vec::new();
-
-    // Only clean directories that are safe - skip everything containing WebView
-    // This completely avoids the locking issue
-    let data_dirs = vec![
-        // New Tauri app data directory (Roaming) - safe to clean
-        dirs::data_dir().map(|d| d.join(TAURI_APP_ID)),
-        // Old rscoop directory (Local) - safe to clean
-        dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR)),
-    ];
-
-    // Clean only the safe directories
-    for data_dir_option in data_dirs {
-        if let Some(data_dir) = data_dir_option {
-            if data_dir.exists() && data_dir.is_dir() {
-                log::info!("Clearing safe data directory: {}", data_dir.display());
-                clear_regular_directory(&data_dir, &mut total_cleared, &mut failed_files)?;
+    // First try to get the Tauri app data directory
+    let data_dir = if let Some(app_data_dir) = dirs::data_dir() {
+        let app_data_dir = app_data_dir.join("com.rscoop.app");
+        if app_data_dir.exists() {
+            app_data_dir
+        } else {
+            dirs::data_local_dir()
+                .and_then(|d| Some(d.join("rscoop")))
+                .ok_or("Could not determine data directory")?
+        }
+    } else {
+        dirs::data_local_dir()
+            .and_then(|d| Some(d.join("rscoop")))
+            .ok_or("Could not determine data directory")?
+    };
+    
+    if data_dir.exists() && data_dir.is_dir() {
+        for entry in fs::read_dir(&data_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            
+            if path.is_file() {
+                fs::remove_file(&path).map_err(|e| e.to_string())?;
+            } else if path.is_dir() {
+                fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
             }
         }
     }
+    
+    Ok(())
+}
 
-    // Clear Windows registry entries if on Windows
+/// Factory reset - clears all application data and marks for factory reset
+#[tauri::command]
+pub fn factory_reset(app: tauri::AppHandle) -> Result<(), String> {
+    log::info!("Starting factory reset process");
+    
+    // Clear all application data
+    clear_application_data()?;
+    
+    // Clear store data and create factory reset marker
+    clear_store_data()?;
+    
+    // Reset tray notification setting to show it again on next startup
+    let _ = crate::commands::settings::set_config_value(
+        app.clone(),
+        crate::config_keys::WINDOW_FIRST_TRAY_NOTIFICATION_SHOWN.to_string(),
+        serde_json::json!(false),
+    );
+    
+    // Schedule WebView cleanup for next startup
+    schedule_webview_cleanup()?;
+    
+    // Clear Windows registry data
     #[cfg(windows)]
     clear_registry_data()?;
-
-    log::info!(
-        "Application data cleanup completed. Cleared {} files.",
-        total_cleared
-    );
-
-    if !failed_files.is_empty() {
-        log::info!(
-            "Skipped {} items (contain WebView data or are locked):",
-            failed_files.len()
-        );
-        // Only log at debug level to reduce noise
-        for path in &failed_files {
-            log::debug!("  - {}", path.display());
-        }
-    }
-
-    Ok(())
-}
-
-/// Clear a regular directory safely
-fn clear_regular_directory(
-    data_dir: &std::path::Path,
-    total_cleared: &mut usize,
-    failed_files: &mut Vec<std::path::PathBuf>,
-) -> Result<(), String> {
-    // Get all entries first to avoid iterator issues
-    let entries: Vec<std::path::PathBuf> = match fs::read_dir(data_dir) {
-        Ok(entries) => entries.filter_map(Result::ok).map(|e| e.path()).collect(),
-        Err(e) => {
-            log::warn!("Failed to read directory {}: {}", data_dir.display(), e);
-            return Ok(());
-        }
-    };
-
-    for path in entries {
-        if path.is_file() {
-            // Skip files that are likely locked by the current process
-            if is_file_locked_by_current_process(&path) {
-                log::info!("Skipping locked file: {}", path.display());
-                failed_files.push(path.clone());
-                continue;
-            }
-
-            if safe_remove_file(&path) {
-                *total_cleared += 1;
-            } else {
-                failed_files.push(path);
-            }
-        } else if path.is_dir() {
-            if !safe_remove_dir(&path) {
-                failed_files.push(path);
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Check if a file is likely locked by the current process
-fn is_file_locked_by_current_process(file_path: &std::path::Path) -> bool {
-    let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-    // Check if it's a known locked file
-    if LOCKED_FILES.iter().any(|&locked| file_name == locked) {
-        return true;
-    }
-
-    // Check if it's a log file that might be in use
-    if file_name.ends_with(".log") || file_name.contains(OLD_APP_DIR) {
-        return true;
-    }
-
-    false
-}
-
-/// Check if a file is a WebView2 locked database file
-fn is_webview_locked_file(file_path: &std::path::Path) -> bool {
-    let path_str = file_path.to_string_lossy();
-    let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-    // WebView2 database files that are heavily locked
-    if path_str.contains("EBWebView")
-        && (path_str.contains("shared_proto_db")
-            || path_str.contains("IndexedDB")
-            || path_str.contains("Local Storage")
-            || path_str.contains("Session Storage"))
-    {
-        return true;
-    }
-
-    // Specific WebView2 database file patterns
-    let webview_locked_patterns = ["LOCK", "LOG", "MANIFEST-", ".log"];
-
-    if webview_locked_patterns
-        .iter()
-        .any(|&pattern| file_name.contains(pattern))
-        && path_str.contains("EBWebView")
-    {
-        return true;
-    }
-
-    false
-}
-
-/// Check if a directory is a WebView2 locked database directory
-fn is_webview_locked_dir(dir_path: &std::path::Path) -> bool {
-    let path_str = dir_path.to_string_lossy();
-
-    // WebView2 database directories that should not be touched
-    path_str.contains("EBWebView")
-        && WEBVIEW_LOCKED_DIRS
-            .iter()
-            .any(|pattern| path_str.contains(pattern))
-}
-
-/// Clears Windows registry entries related to the application
-#[cfg(windows)]
-fn clear_registry_data() -> Result<(), String> {
-    log::info!("Attempting to clear Windows registry entries");
-
-    use std::process::Command;
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    let registry_keys = vec![
-        r"HKEY_CURRENT_USER\Software\com.rscoop.app",
-        r"HKEY_CURRENT_USER\Software\Rscoop",
-        r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\Rscoop",
-        r"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Rscoop",
-    ];
-
-    for key in registry_keys {
-        let output = Command::new("reg").args(&["delete", key, "/f"]).output();
-
-        match output {
-            Ok(result) => {
-                if result.status.success() {
-                    log::info!("Successfully deleted registry key: {}", key);
-                } else {
-                    log::debug!("Registry key not found or could not be deleted: {}", key);
-                }
-            }
-            Err(e) => {
-                log::debug!("Failed to execute registry command for {}: {}", key, e);
-            }
-        }
-
-        let hklm_cu = RegKey::predef(HKEY_CURRENT_USER);
-
-        let key_path = key.strip_prefix(r"HKEY_CURRENT_USER\").unwrap_or(key);
-        let _ = hklm_cu.delete_subkey_all(key_path);
-
-        let hklm_lm = RegKey::predef(HKEY_LOCAL_MACHINE);
-
-        let key_path = key.strip_prefix(r"HKEY_LOCAL_MACHINE\").unwrap_or(key);
-        let _ = hklm_lm.delete_subkey_all(key_path);
-    }
-
-    Ok(())
-}
-
-/// Checks if factory reset marker exists
-#[tauri::command]
-pub fn check_factory_reset_marker() -> Result<bool, String> {
-    if let Some(app_data_dir) = dirs::data_dir() {
-        let marker_file = app_data_dir.join(TAURI_APP_ID).join(FACTORY_RESET_MARKER);
-        if marker_file.exists() {
-            // Remove the marker after checking
-            let _ = fs::remove_file(&marker_file);
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-/// Creates a factory reset marker file
-fn create_factory_reset_marker() -> Result<(), String> {
-    log::info!("Creating factory reset marker");
-
-    if let Some(app_data_dir) = dirs::data_dir() {
-        let marker_file = app_data_dir.join(TAURI_APP_ID).join(FACTORY_RESET_MARKER);
-        if let Some(parent) = marker_file.parent() {
-            match fs::create_dir_all(parent) {
-                Ok(_) => match fs::write(&marker_file, "Factory reset requested") {
-                    Ok(_) => {
-                        log::info!("Created factory reset marker: {}", marker_file.display());
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        log::warn!("Failed to create factory reset marker: {}", e);
-                        return Err(format!("Failed to create factory reset marker: {}", e));
-                    }
-                },
-                Err(e) => {
-                    log::warn!("Failed to create directory for marker: {}", e);
-                    return Err(format!("Failed to create directory for marker: {}", e));
-                }
-            }
-        }
-    }
-
-    Err("Could not determine app data directory".to_string())
-}
-
-/// Factory reset coordinator that performs all cleanup steps
-#[tauri::command]
-pub fn factory_reset() -> Result<(), String> {
-    log::info!("Starting full factory reset");
-
-    clear_application_data()?;
-    clear_store_data()?;
-
-    create_factory_reset_marker()?;
-    schedule_webview_cleanup()?;
-
-    Ok(())
-}
-
-/// Clears Tauri store configuration data
-#[tauri::command]
-pub fn clear_store_data() -> Result<(), String> {
-    log::info!("Starting store data cleanup");
-
-    // Define store file names
-    let store_files_to_clear = [
-        SETTINGS_FILE,
-        SIGNALS_FILE,
-        VERSION_FILE,
-        &format!("{}{}", SETTINGS_FILE, BACKUP_EXT),
-        &format!("{}{}", SIGNALS_FILE, BACKUP_EXT),
-    ];
-
-    // Clear Tauri store files from all possible locations
-    let mut store_files = Vec::new();
-
-    // Add paths from new Tauri app data directory
-    if let Some(data_dir) = dirs::data_dir() {
-        let app_dir = data_dir.join(TAURI_APP_ID);
-        store_files.extend(
-            store_files_to_clear
-                .iter()
-                .map(|file| Some(app_dir.join(file))),
-        );
-    }
-
-    // Add paths from old rscoop directory
-    if let Some(local_dir) = dirs::data_local_dir() {
-        let old_dir = local_dir.join(OLD_APP_DIR);
-        store_files.extend(
-            store_files_to_clear
-                .iter()
-                .map(|file| Some(old_dir.join(file))),
-        );
-    }
-
-    let mut cleared_count = 0;
-    let mut failed_files = Vec::new();
-
-    for store_file_option in store_files {
-        if let Some(store_file) = store_file_option {
-            if store_file.exists() && store_file.is_file() {
-                log::info!("Attempting to remove store file: {}", store_file.display());
-
-                if safe_remove_file(&store_file) {
-                    cleared_count += 1;
-                } else {
-                    failed_files.push(store_file);
-                }
-            }
-        }
-    }
-
-    log::info!("Store cleanup completed. Removed {} files", cleared_count);
-
-    if !failed_files.is_empty() {
-        log::warn!(
-            "Failed to clear {} store files (likely in use):",
-            failed_files.len()
-        );
-        for path in &failed_files {
-            log::warn!("  - {}", path.display());
-        }
-        // Don't return error for locked files, they will be cleaned up on restart
-    }
-
+    
+    log::info!("Factory reset completed successfully");
     Ok(())
 }
 
@@ -559,57 +293,54 @@ pub fn get_app_logs() -> Result<String, String> {
     let mut log_info = String::new();
 
     log_info.push_str("=== LOGGING INFORMATION ===\n\n");
-    log_info.push_str("Current Logging Configuration:\n");
-    log_info.push_str("- Logs are written to: disk files + stdout (terminal window)\n");
-    log_info.push_str("- Log level: TRACE\n");
-    log_info.push_str("- Log format: timestamp, level, target, message\n\n");
 
-    log_info.push_str("Log File Locations:\n");
-
-    if let Some(log_path) = get_log_dir() {
-        if log_path.is_dir() {
-            log_info.push_str(&format!("✓ Log directory: {}\n", log_path.display()));
-
-            if let Ok(entries) = fs::read_dir(&log_path) {
-                let mut log_files: Vec<PathBuf> = entries
-                    .filter_map(|entry| {
-                        entry.ok().and_then(|e| {
-                            let path = e.path();
-                            if path.is_file() && path.extension().map_or(false, |ext| ext == "log")
-                            {
-                                Some(path)
-                            } else {
-                                None
+    log_info.push_str("Location:\n");
+    if let Some(log_dir) = get_log_dir() {
+        log_info.push_str(&format!("  Directory: {}\n", log_dir.display()));
+        
+        if log_dir.exists() {
+            match fs::read_dir(&log_dir) {
+                Ok(entries) => {
+                    let mut log_files: Vec<_> = entries
+                        .filter_map(|entry| entry.ok())
+                        .filter(|entry| entry.path().is_file())
+                        .collect();
+                    
+                    // Sort by modification time, newest first
+                    log_files.sort_by(|a, b| {
+                        let a_time = a.metadata().and_then(|m| m.modified()).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                        let b_time = b.metadata().and_then(|m| m.modified()).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                        b_time.cmp(&a_time)
+                    });
+                    
+                    log_info.push_str(&format!("  Log files ({} total):\n", log_files.len()));
+                    for (i, entry) in log_files.iter().take(5).enumerate() {
+                        if let Ok(metadata) = entry.metadata() {
+                            if let Ok(modified) = metadata.modified() {
+                                let datetime: chrono::DateTime<Local> = modified.into();
+                                log_info.push_str(&format!(
+                                    "    {}. {} ({})\n",
+                                    i + 1,
+                                    entry.file_name().to_string_lossy(),
+                                    datetime.format("%Y-%m-%d %H:%M:%S")
+                                ));
                             }
-                        })
-                    })
-                    .collect();
-
-                // Sort by modification time, newest first
-                log_files.sort_by_key(|path| {
-                    fs::metadata(path)
-                        .and_then(|meta| meta.modified())
-                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                });
-                log_files.reverse();
-
-                if !log_files.is_empty() {
-                    log_info.push_str("  Recent log files:\n");
-                    for (i, path) in log_files.iter().take(5).enumerate() {
-                        if let Ok(metadata) = fs::metadata(&path) {
-                            let size = metadata.len();
-                            log_info.push_str(&format!(
-                                "  {}. {} ({} bytes)\n",
-                                i + 1,
-                                path.display(),
-                                size
-                            ));
                         }
                     }
+                    if log_files.len() > 5 {
+                        log_info.push_str(&format!("    ... and {} more\n", log_files.len() - 5));
+                    }
+                }
+                Err(e) => {
+                    log_info.push_str(&format!("  Failed to read directory: {}\n", e));
                 }
             }
         } else {
-            log_info.push_str("  Logs not yet created (will be created on first run)\n");
+            log_info.push_str("  Directory does not exist yet.\n");
+        }
+        
+        let log_path = log_dir.join("rscoop.log");
+        if log_path.exists() {
             log_info.push_str(&format!("  Expected location: {}\n", log_path.display()));
         }
     } else {
@@ -620,12 +351,11 @@ pub fn get_app_logs() -> Result<String, String> {
     log_info.push_str("1. Development Mode:\n");
     log_info.push_str("   $ npm run tauri dev\n");
     log_info.push_str("   - Logs appear in terminal AND are written to disk\n");
-    log_info
-        .push_str("   - Look for messages: '=== COLD START TRACE ===', '=== DEBUG INFO ==='\n\n");
+    log_info.push_str("   - Look for messages: '=== COLD START TRACE ===', '=== DEBUG INFO ==='\n\n");
 
     log_info.push_str("2. Production Build:\n");
     log_info.push_str("   - Logs are automatically written to disk\n");
-    log_info.push_str("   - Check the log files in %LOCALAPPDATA%\\rscoop\\logs\\\n");
+    log_info.push_str("   - Check the log files in %APPDATA%\\com.rscoop.app\\logs\\\n");
     log_info.push_str("   - Open in any text editor\n\n");
 
     log_info.push_str("3. Frontend Logs (Browser Console):\n");
@@ -633,8 +363,7 @@ pub fn get_app_logs() -> Result<String, String> {
     log_info.push_str("   - Check the Console tab for frontend errors and messages\n\n");
 
     log_info.push_str("Key Log Markers:\n");
-    log_info
-        .push_str("- Cold start: '=== COLD START TRACE ===' markers with [1/6] through [6/6]\n");
+    log_info.push_str("- Cold start: '=== COLD START TRACE ===' markers with [1/6] through [6/6]\n");
     log_info.push_str("- Debug info: '=== DEBUG INFO ===' markers\n");
     log_info.push_str("- Scoop operations: general backend operations\n");
 
@@ -644,47 +373,257 @@ pub fn get_app_logs() -> Result<String, String> {
 /// Reads the current application log file
 #[tauri::command]
 pub fn read_app_log_file() -> Result<String, String> {
-    // Determine log file path - check both new and old locations
-    let log_files = vec![
-        // Try new Tauri app data directory first (Roaming)
-        dirs::data_dir().and_then(|d| Some(d.join(TAURI_APP_ID).join("logs").join("rscoop.log"))),
-        // Fallback to old rscoop directory (Local)
-        dirs::data_local_dir()
-            .and_then(|d| Some(d.join(OLD_APP_DIR).join("logs").join("rscoop.log"))),
-    ];
+    // Determine log file path - use APPDATA\com.rscoop.app\logs\rscoop.log on Windows
+    let log_file = if let Some(data_dir) = dirs::data_dir() {
+        data_dir.join("com.rscoop.app").join("logs").join("rscoop.log")
+    } else {
+        PathBuf::from("./logs/rscoop.log")
+    };
 
-    // Try each potential log file location
-    for log_file_option in log_files {
-        if let Some(log_file) = log_file_option {
-            match fs::read_to_string(&log_file) {
-                Ok(content) => return Ok(content),
-                Err(_) => continue, // Try next location
+    // Read the log file
+    match fs::read_to_string(&log_file) {
+        Ok(content) => Ok(content),
+        Err(e) => {
+            if !log_file.exists() {
+                Ok(format!(
+                    "Log file not found at: {}\n\nLogs will be created after the first run.",
+                    log_file.display()
+                ))
+            } else {
+                Err(format!("Failed to read log file: {}", e))
             }
         }
     }
+}
 
-    // If all locations failed, try to provide helpful message
-    Ok(format!(
-        "Log file not found at any expected location.\nChecked:\n- {}\n- {}\n\nLogs will be created after the first run.",
-        dirs::data_dir()
-            .map(|d| d.join(TAURI_APP_ID).join("logs").join("rscoop.log"))
-            .unwrap_or_else(|| PathBuf::from("./logs/rscoop.log"))
-            .display(),
-        dirs::data_local_dir()
-            .map(|d| d.join(OLD_APP_DIR).join("logs").join("rscoop.log"))
-            .unwrap_or_else(|| PathBuf::from("./logs/rscoop.log"))
-            .display()
-    ))
+/// Checks if factory reset marker exists
+#[tauri::command]
+pub fn check_factory_reset_marker() -> Result<bool, String> {
+    if let Some(app_data_dir) = dirs::data_dir() {
+        let marker_file = app_data_dir.join(TAURI_APP_ID).join(FACTORY_RESET_MARKER);
+        if marker_file.exists() {
+            // Remove the marker after checking
+            let _ = fs::remove_file(&marker_file);
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Clears Tauri store configuration data
+#[tauri::command]
+pub fn clear_store_data() -> Result<(), String> {
+    log::info!("Starting store data cleanup");
+    
+    // Create list of files to clear using defined constants
+    let store_files = vec![
+        // New Tauri app data directory - main files
+        dirs::data_dir().map(|d| d.join(TAURI_APP_ID).join(SETTINGS_FILE)),
+        dirs::data_dir().map(|d| d.join(TAURI_APP_ID).join(SIGNALS_FILE)),
+        dirs::data_dir().map(|d| d.join(TAURI_APP_ID).join(VERSION_FILE)),
+        // Backup files in new directory
+        dirs::data_dir().map(|d| d.join(TAURI_APP_ID).join(format!("{}{}", SETTINGS_FILE, BACKUP_EXT))),
+        dirs::data_dir().map(|d| d.join(TAURI_APP_ID).join(format!("{}{}", SIGNALS_FILE, BACKUP_EXT))),
+        // Old rscoop directory - main files
+        dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join(SETTINGS_FILE)),
+        dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join(SIGNALS_FILE)),
+        dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join(VERSION_FILE)),
+        // Backup files in old directory
+        dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join(format!("{}{}", SETTINGS_FILE, BACKUP_EXT))),
+        dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join(format!("{}{}", SIGNALS_FILE, BACKUP_EXT))),
+    ];
+    
+    let mut cleared_count = 0;
+    let mut failed_files = Vec::new();
+    
+    for store_file_option in store_files {
+        if let Some(store_file) = store_file_option {
+            if store_file.exists() && store_file.is_file() {
+                log::info!("Attempting to remove store file: {}", store_file.display());
+                
+                if safe_remove_file(&store_file) {
+                    cleared_count += 1;
+                } else {
+                    failed_files.push(store_file);
+                }
+            }
+        }
+    }
+    
+    // Create a marker file to indicate factory reset
+    let mut marker_created = false;
+    if let Some(app_data_dir) = dirs::data_dir() {
+        let marker_file = app_data_dir.join(TAURI_APP_ID).join(FACTORY_RESET_MARKER);
+        if let Some(parent) = marker_file.parent() {
+            match fs::create_dir_all(parent) {
+                Ok(_) => {
+                    match fs::write(&marker_file, "Factory reset requested") {
+                        Ok(_) => {
+                            marker_created = true;
+                            log::info!("Created factory reset marker: {}", marker_file.display());
+                        }
+                        Err(e) => log::warn!("Failed to create factory reset marker: {}", e),
+                    }
+                }
+                Err(e) => log::warn!("Failed to create directory for marker: {}", e),
+            }
+        }
+    }
+    
+    log::info!("Store cleanup completed. Removed {} files, created marker: {}", cleared_count, marker_created);
+    
+    if !failed_files.is_empty() {
+        log::warn!("Failed to clear {} store files (likely in use):", failed_files.len());
+        for path in &failed_files {
+            log::warn!("  - {}", path.display());
+        }
+        // Don't return error for locked files, they will be cleaned up on restart
+    }
+    
+    Ok(())
+}
+
+/// Clears registry data on Windows
+#[tauri::command]
+#[cfg(windows)]
+pub fn clear_registry_data() -> Result<(), String> {
+    log::info!("Attempting to clear Windows registry entries");
+    
+    use std::process::Command;
+    
+    // Clear registry entries using reg command
+    let registry_keys = vec![
+        r"HKEY_CURRENT_USER\Software\com.rscoop.app",
+        r"HKEY_CURRENT_USER\Software\Rscoop",
+    ];
+    
+    for key in registry_keys {
+        let output = Command::new("reg")
+            .args(&["delete", key, "/f"])
+            .output();
+            
+        match output {
+            Ok(result) => {
+                if result.status.success() {
+                    log::info!("Successfully deleted registry key: {}", key);
+                } else {
+                    log::debug!("Registry key not found or could not be deleted: {}", key);
+                }
+            }
+            Err(e) => {
+                log::warn!("Failed to execute registry command for {}: {}", key, e);
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+pub fn clear_registry_data() -> Result<(), String> {
+    // Not applicable on non-Windows platforms
+    Ok(())
+}
+
+/// Clears WebView cache data
+#[tauri::command]
+pub fn clear_webview_cache() -> Result<(), String> {
+    log::info!("Attempting to clear WebView cache");
+    
+    // Try to clear cache from both new and old locations
+    let cache_dirs = vec![
+        dirs::data_dir().map(|d| d.join(TAURI_APP_ID)),
+        dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR)),
+    ];
+    
+    let mut cleared_dirs = 0;
+    for cache_dir_option in cache_dirs {
+        if let Some(cache_dir) = cache_dir_option {
+            if cache_dir.exists() {
+                for locked_dir_name in WEBVIEW_LOCKED_DIRS {
+                    let locked_dir = cache_dir.join(locked_dir_name);
+                    if locked_dir.exists() && locked_dir.is_dir() {
+                        log::info!("Attempting to remove WebView cache dir: {}", locked_dir.display());
+                        if safe_remove_dir(&locked_dir) {
+                            cleared_dirs += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    log::info!("WebView cache cleanup completed. Removed {} directories.", cleared_dirs);
+    Ok(())
+}
+
+/// Schedules WebView cache cleanup for next startup
+#[tauri::command]
+pub fn schedule_webview_cleanup() -> Result<(), String> {
+    if let Some(app_data_dir) = dirs::data_dir() {
+        let marker_file = app_data_dir.join(TAURI_APP_ID).join(WEBVIEW_CLEANUP_MARKER);
+        if let Some(parent) = marker_file.parent() {
+            match fs::create_dir_all(parent) {
+                Ok(_) => {
+                    match fs::write(&marker_file, "Cleanup WebView cache on next startup") {
+                        Ok(_) => {
+                            log::info!("Scheduled WebView cache cleanup for next startup");
+                        }
+                        Err(e) => log::warn!("Failed to schedule WebView cache cleanup: {}", e),
+                    }
+                }
+                Err(e) => log::warn!("Failed to create directory for WebView cleanup marker: {}", e),
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Checks if WebView cleanup is scheduled
+#[tauri::command]
+pub fn is_webview_cleanup_scheduled() -> Result<bool, String> {
+    if let Some(app_data_dir) = dirs::data_dir() {
+        let marker_file = app_data_dir.join(TAURI_APP_ID).join(WEBVIEW_CLEANUP_MARKER);
+        Ok(marker_file.exists())
+    } else {
+        Ok(false)
+    }
+}
+
+/// Performs WebView cleanup if scheduled
+#[tauri::command]
+pub fn perform_scheduled_webview_cleanup() -> Result<(), String> {
+    // Check if cleanup is scheduled
+    if !is_webview_cleanup_scheduled()? {
+        return Ok(());
+    }
+    
+    log::info!("Performing scheduled WebView cache cleanup");
+    
+    // Perform the cleanup
+    clear_webview_cache()?;
+    
+    // Remove the marker
+    if let Some(app_data_dir) = dirs::data_dir() {
+        let marker_file = app_data_dir.join(TAURI_APP_ID).join(WEBVIEW_CLEANUP_MARKER);
+        if marker_file.exists() {
+            let _ = fs::remove_file(&marker_file);
+        }
+    }
+    
+    log::info!("Completed scheduled WebView cache cleanup");
+    Ok(())
 }
 
 /// Final cleanup to be called during application shutdown
 #[tauri::command]
 pub fn final_cleanup_on_exit() -> Result<(), String> {
     log::info!("Performing final cleanup before exit");
-
+    
     // Give WebView processes a moment to release files
     std::thread::sleep(std::time::Duration::from_millis(1000));
-
+    
     // Try to remove any remaining configuration files
     let final_cleanup_files = vec![
         dirs::data_dir().map(|d| d.join(TAURI_APP_ID).join(SETTINGS_FILE)),
@@ -692,7 +631,7 @@ pub fn final_cleanup_on_exit() -> Result<(), String> {
         dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join(SETTINGS_FILE)),
         dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join(SIGNALS_FILE)),
     ];
-
+    
     for file_option in final_cleanup_files {
         if let Some(file) = file_option {
             if file.exists() {
@@ -702,113 +641,10 @@ pub fn final_cleanup_on_exit() -> Result<(), String> {
             }
         }
     }
-
+    
     // Schedule WebView cache cleanup for next startup
     schedule_webview_cleanup()?;
-
-    Ok(())
-}
-
-/// Schedule WebView cache cleanup to run on next startup
-fn schedule_webview_cleanup() -> Result<(), String> {
-    log::info!("Scheduling WebView cache cleanup for next startup");
-
-    if let Some(app_data_dir) = dirs::data_dir() {
-        let cleanup_marker = app_data_dir.join(TAURI_APP_ID).join(WEBVIEW_CLEANUP_MARKER);
-        if let Some(parent) = cleanup_marker.parent() {
-            let _ = fs::create_dir_all(parent);
-            let _ = fs::write(
-                &cleanup_marker,
-                format!("Scheduled at: {:?}", std::time::SystemTime::now()),
-            );
-        }
-    }
-
-    Ok(())
-}
-
-/// Perform scheduled WebView cleanup if marker exists
-#[tauri::command]
-pub fn perform_scheduled_webview_cleanup() -> Result<(), String> {
-    if let Some(app_data_dir) = dirs::data_dir() {
-        let cleanup_marker = app_data_dir.join(TAURI_APP_ID).join(WEBVIEW_CLEANUP_MARKER);
-
-        if cleanup_marker.exists() {
-            log::info!("Performing scheduled WebView cleanup on startup");
-
-            // Remove the marker first
-            let _ = fs::remove_file(&cleanup_marker);
-
-            // Wait a bit more for WebView processes to fully initialize
-            std::thread::sleep(std::time::Duration::from_millis(2000));
-
-            // Try to clear WebView cache more aggressively on startup
-            aggressive_webview_cleanup()?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Force clear WebView cache by terminating processes first
-#[tauri::command]
-pub fn force_clear_webview_cache() -> Result<(), String> {
-    log::info!("Force clearing WebView cache");
-
-    #[cfg(windows)]
-    {
-        use std::process::Command;
-        let _ = Command::new("taskkill")
-            .args(&["/F", "/IM", "msedgewebview2.exe"])
-            .output();
-
-        std::thread::sleep(std::time::Duration::from_millis(2000));
-    }
-
-    aggressive_webview_cleanup()
-}
-
-/// More aggressive WebView cleanup for startup
-fn aggressive_webview_cleanup() -> Result<(), String> {
-    log::info!("Performing WebView cleanup on startup");
-
-    let webview_dirs = vec![
-        dirs::data_dir().map(|d| d.join(TAURI_APP_ID).join("EBWebView")),
-        dirs::data_local_dir().map(|d| d.join(TAURI_APP_ID).join("EBWebView")),
-        dirs::cache_dir().map(|d| d.join(TAURI_APP_ID).join("EBWebView")),
-    ];
-
-    for webview_dir_option in webview_dirs {
-        if let Some(webview_dir) = webview_dir_option {
-            if webview_dir.exists() {
-                log::info!("Found WebView directory: {}", webview_dir.display());
-
-                // Try to remove the entire directory with a delay
-                std::thread::sleep(std::time::Duration::from_millis(1000));
-
-                match fs::remove_dir_all(&webview_dir) {
-                    Ok(_) => {
-                        log::info!(
-                            "Successfully removed WebView directory: {}",
-                            webview_dir.display()
-                        );
-                    }
-                    Err(e) => {
-                        log::info!(
-                            "Could not remove WebView directory (this is normal): {} - {}",
-                            webview_dir.display(),
-                            e
-                        );
-                        // Don't fall back to individual file cleanup to avoid locking issues
-                        log::info!(
-                            "WebView directory will remain and be cleaned on next factory reset"
-                        );
-                    }
-                }
-            }
-        }
-    }
-
+    
     Ok(())
 }
 
@@ -820,7 +656,7 @@ fn get_log_dir() -> Option<PathBuf> {
             return Some(app_data_dir.join("logs"));
         }
     }
-
+    
     // Fallback to the old rscoop directory
     dirs::data_local_dir().map(|d| d.join(OLD_APP_DIR).join("logs"))
 }

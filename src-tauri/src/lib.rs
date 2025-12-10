@@ -20,8 +20,51 @@ mod config_keys {
     pub const WINDOW_FIRST_TRAY_NOTIFICATION_SHOWN: &str = "window.firstTrayNotificationShown";
 }
 
+// Application constants
+mod app_constants {
+    pub const DEFAULT_SCOOP_PATH_WINDOWS: &str = "C:\\scoop";
+    pub const LOG_RETENTION_CHECK_INTERVAL_SECS: u64 = 300; // 5 minutes when auto-update is disabled
+    pub const MAX_SLEEP_CHUNK_SECS: u64 = 60; // Check every minute at most
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Set up panic handler for better crash reporting
+    std::panic::set_hook(Box::new(|panic_info| {
+        let location = panic_info.location().unwrap_or_else(|| panic_info.location().unwrap());
+        let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "Unknown panic message".to_string()
+        };
+        
+        eprintln!("PANIC: {} at {}:{}:{}", 
+            message, 
+            location.file(), 
+            location.line(), 
+            location.column()
+        );
+        
+        // Try to write to log file if possible
+        if let Some(log_dir) = dirs::data_dir().map(|dir| dir.join("com.rscoop.app").join("logs")) {
+            if let Ok(mut log_file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_dir.join("panic.log")) 
+            {
+                use std::io::Write;
+                let _ = writeln!(log_file, "[{}] PANIC: {} at {}:{}:{}", 
+                    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"),
+                    message,
+                    location.file(),
+                    location.line(),
+                    location.column()
+                );
+            }
+        }
+    }));
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -40,25 +83,13 @@ pub fn run() {
         }));
     }
 
-    // Determine log directory path - use consistent path with app data
-    let log_dir = if let Some(app_data_dir) = dirs::data_dir() {
-        let app_data_dir = app_data_dir.join("com.rscoop.app").join("logs");
-        if app_data_dir.exists() || std::fs::create_dir_all(&app_data_dir).is_ok() {
-            app_data_dir
-        } else {
-            // Fallback to the old rscoop directory
-            dirs::data_local_dir()
-                .map(|dir| dir.join("rscoop").join("logs"))
-                .unwrap_or_else(|| PathBuf::from("./logs"))
-        }
-    } else {
-        // Fallback to the old rscoop directory
-        dirs::data_local_dir()
-            .map(|dir| dir.join("rscoop").join("logs"))
-            .unwrap_or_else(|| PathBuf::from("./logs"))
-    };
+    // Determine log directory path
+    let log_dir = dirs::data_dir()
+        .map(|dir| dir.join("com.rscoop.app").join("logs"))
+        .unwrap_or_else(|| PathBuf::from("./logs"));
 
     cleanup_old_logs(&log_dir);
+
 
     // Create log directory if it does not exist
     if let Err(e) = std::fs::create_dir_all(&log_dir) {
@@ -115,28 +146,19 @@ pub fn run() {
                 log::error!("Failed to setup system tray: {}", e);
             }
 
+            // Initialize update log store
+            if let Err(e) = commands::update_log::initialize_update_log_store(app.handle()) {
+                log::warn!("Failed to initialize update log store: {}", e);
+            }
+
             // Start background tasks
             start_background_tasks(app.handle().clone());
 
             Ok(())
         })
-        .on_window_event(handle_window_event)
+        .on_window_event(|window, event| handle_window_event(window, &event))
         .on_page_load(|window, _| {
             cold_start::run_cold_start(window.app_handle().clone());
-
-            // Initialize update log store
-            if let Err(e) = commands::update_log::initialize_update_log_store(&window.app_handle())
-            {
-                log::error!("Failed to initialize update log store: {}", e);
-            }
-
-            // Perform scheduled WebView cleanup on startup
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(3)); // Wait for app to fully load
-                if let Err(e) = commands::debug::perform_scheduled_webview_cleanup() {
-                    log::warn!("Failed to perform scheduled WebView cleanup: {}", e);
-                }
-            });
         })
         .invoke_handler(tauri::generate_handler![
             commands::search::search_scoop,
@@ -211,8 +233,10 @@ pub fn run() {
             commands::debug::check_factory_reset_marker,
             commands::debug::clear_application_data,
             commands::debug::clear_store_data,
+            commands::debug::clear_store_data,
+            commands::debug::clear_registry_data,
+            commands::debug::clear_webview_cache,
             commands::debug::factory_reset,
-            commands::debug::force_clear_webview_cache,
             commands::debug::final_cleanup_on_exit,
             commands::debug::perform_scheduled_webview_cleanup,
             commands::version::check_and_update_version,
@@ -220,6 +244,7 @@ pub fn run() {
             commands::startup::set_auto_start_enabled,
             cold_start::is_cold_start_ready,
             tray::refresh_tray_apps_menu,
+            tray::get_tray_notification_strings,
             commands::update_config::reload_update_config,
             commands::update_log::get_update_logs,
             commands::update_log::get_all_update_logs,
@@ -241,13 +266,28 @@ fn cleanup_old_logs(log_dir: &PathBuf) {
     }
 
     if let Ok(entries) = std::fs::read_dir(log_dir) {
+        let mut removed_count = 0;
+        let mut failed_count = 0;
+
         for entry in entries.flatten() {
             if let Ok(metadata) = entry.metadata() {
                 if metadata.is_file() {
-                    let _ = std::fs::remove_file(entry.path());
+                    match std::fs::remove_file(entry.path()) {
+                        Ok(_) => removed_count += 1,
+                        Err(e) => {
+                            log::debug!("Failed to remove log file {:?}: {}", entry.path(), e);
+                            failed_count += 1;
+                        }
+                    }
                 }
             }
         }
+
+        if removed_count > 0 || failed_count > 0 {
+            log::info!("Log cleanup completed: {} removed, {} failed", removed_count, failed_count);
+        }
+    } else {
+        log::debug!("Could not read log directory: {:?}", log_dir);
     }
 }
 
@@ -271,22 +311,26 @@ fn setup_windows_specific(app: &tauri::App) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-// Resolve Scoop installation pat
+// Resolve Scoop installation path with fallback to defaults
 fn resolve_scoop_path(app_handle: tauri::AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
     match utils::resolve_scoop_root(app_handle.clone()) {
         Ok(path) => Ok(path),
         Err(e) => {
             log::warn!("Could not resolve scoop root path: {}", e);
-            detect_scoop_path().map(PathBuf::from).or_else(|_| {
-                #[cfg(windows)]
-                {
-                    Ok(PathBuf::from("C:\\scoop"))
-                }
-                #[cfg(not(windows))]
-                {
-                    Ok(PathBuf::from("/usr/local/scoop"))
-                }
-            })
+            detect_scoop_path()
+                .map(PathBuf::from)
+                .or_else(|_| {
+                    #[cfg(windows)]
+                    {
+                        log::info!("Using default Windows Scoop path: {}", app_constants::DEFAULT_SCOOP_PATH_WINDOWS);
+                        Ok(PathBuf::from(app_constants::DEFAULT_SCOOP_PATH_WINDOWS))
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        log::info!("Using default Unix Scoop path: {}", app_constants::DEFAULT_SCOOP_PATH_UNIX);
+                        Ok(PathBuf::from(app_constants::DEFAULT_SCOOP_PATH_UNIX))
+                    }
+                })
         }
     }
 }
@@ -355,8 +399,10 @@ fn start_background_tasks(app_handle: tauri::AppHandle) {
     use tokio::time::sleep;
 
     tauri::async_runtime::spawn(async move {
+        log::info!("Background tasks started");
+
         loop {
-            // Parse auto-update interval from settings
+            // Parse auto-update interval from settings with better error handling
             let interval_raw = commands::settings::get_config_value(
                 app_handle.clone(),
                 config_keys::BUCKET_AUTO_UPDATE_INTERVAL.to_string(),
@@ -366,18 +412,11 @@ fn start_background_tasks(app_handle: tauri::AppHandle) {
             .and_then(|v| v.as_str().map(|s| s.to_string()))
             .unwrap_or_else(|| "off".to_string());
 
-            let interval_secs = match interval_raw.as_str() {
-                "24h" | "1d" => Some(86400),
-                "7d" | "1w" => Some(604800),
-                "1h" => Some(3600),
-                "6h" => Some(21600),
-                "off" => None,
-                custom if custom.starts_with("custom:") => custom[7..].parse::<u64>().ok(),
-                numeric => numeric.parse::<u64>().ok(),
-            };
+            let interval_secs = parse_update_interval(&interval_raw);
 
             if interval_secs.is_none() {
-                sleep(Duration::from_secs(30)).await;
+                // Auto-update is disabled, check again later
+                sleep(Duration::from_secs(app_constants::LOG_RETENTION_CHECK_INTERVAL_SECS)).await;
                 continue;
             }
             let interval_secs = interval_secs.unwrap();
@@ -403,14 +442,17 @@ fn start_background_tasks(app_handle: tauri::AppHandle) {
             };
 
             if elapsed >= interval_secs {
+                log::debug!("Auto-update interval elapsed ({}s), starting update check", elapsed);
                 run_auto_update(&app_handle, now).await;
                 continue;
             }
 
-            // Waiting for next checkup
+            // Calculate sleep duration (check at most every MAX_SLEEP_CHUNK_SECS)
             let remaining = interval_secs - elapsed;
-            let chunk = remaining.min(60);
-            sleep(Duration::from_secs(chunk)).await;
+            let sleep_duration = Duration::from_secs(remaining.min(app_constants::MAX_SLEEP_CHUNK_SECS));
+
+            log::debug!("Next auto-update check in {} seconds", sleep_duration.as_secs());
+            sleep(sleep_duration).await;
         }
     });
 }
@@ -635,5 +677,20 @@ async fn update_packages_after_buckets(app_handle: &tauri::AppHandle, silent_upd
                 log::error!("Failed to save package update error log: {}", e);
             }
         }
+    }
+}
+
+// Helper function to parse update interval from string
+fn parse_update_interval(interval_raw: &str) -> Option<u64> {
+    match interval_raw {
+        "24h" | "1d" => Some(86400),      // 24 hours
+        "7d" | "1w" => Some(604800),      // 7 days
+        "1h" => Some(3600),               // 1 hour
+        "6h" => Some(21600),              // 6 hours
+        "off" => None,                    // Disabled
+        custom if custom.starts_with("custom:") => {
+            custom[7..].parse::<u64>().ok()
+        },
+        numeric => numeric.parse::<u64>().ok(),
     }
 }

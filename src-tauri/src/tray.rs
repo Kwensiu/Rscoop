@@ -185,17 +185,65 @@ pub async fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Gets tray notification strings for the current locale
+#[tauri::command]
+pub fn get_tray_notification_strings() -> Result<serde_json::Value, String> {
+    // For now, we'll return hardcoded strings. In a full implementation,
+    // we'd need to access the frontend locale from the backend.
+    // This is a limitation of the current architecture.
+    Ok(serde_json::json!({
+        "en": {
+            "title": "Rscoop - Minimized to Tray",
+            "message": "Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?",
+            "close_button": "Close and Disable Tray",
+            "keep_button": "Keep in Tray"
+        },
+        "zh": {
+            "title": "Rscoop - 最小化到托盘",
+            "message": "Rscoop 已最小化到系统托盘，并将在后台继续运行。\n\n您可以：\n• 点击托盘图标恢复窗口\n• 右键单击托盘图标访问上下文菜单\n• 在设置 > 窗口行为中更改此行为\n\n您想要怎么做？",
+            "close_button": "关闭并禁用托盘",
+            "keep_button": "保持在托盘"
+        }
+    }))
+}
+
 /// Blocking version for use in threads
 pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
     log::info!("Displaying blocking native dialog for tray notification");
 
+    // Try to get the current language setting, default to English
+    let language = settings::get_config_value(
+        app.clone(),
+        "language".to_string(),
+    )
+    .ok()
+    .flatten()
+    .and_then(|v| v.as_str().map(|s| s.to_string()))
+    .unwrap_or_else(|| "en".to_string());
+
+    // Get the appropriate strings based on language
+    let (title, message, close_button, keep_button) = match language.as_str() {
+        "zh" => (
+            "Rscoop - 最小化到托盘",
+            "Rscoop 已最小化到系统托盘，并将在后台继续运行。\n\n您可以：\n• 点击托盘图标恢复窗口\n• 右键单击托盘图标访问上下文菜单\n• 在设置 > 窗口行为中更改此行为\n\n您想要怎么做？",
+            "关闭并禁用托盘",
+            "保持在托盘"
+        ),
+        _ => (
+            "Rscoop - Minimized to Tray",
+            "Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?",
+            "Close and Disable Tray",
+            "Keep in Tray"
+        )
+    };
+
     // Show a nice native dialog with information about tray behavior
     let result = app
         .dialog()
-        .message("Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?")
-        .title("Rscoop - Minimized to Tray")
+        .message(message)
+        .title(title)
         .kind(MessageDialogKind::Info)
-        .buttons(MessageDialogButtons::OkCancelCustom("Close and Disable Tray".to_string(), "Keep in Tray".to_string()))
+        .buttons(MessageDialogButtons::OkCancelCustom(close_button.to_string(), keep_button.to_string()))
         .blocking_show();
 
     // If user chose to close and disable tray, disable the setting and exit

@@ -217,6 +217,12 @@ export interface Dict {
       docs: string;
       copyright: string;
     };
+    tray: {
+      notification_title: string;
+      notification_message: string;
+      close_and_disable: string;
+      keep_in_tray: string;
+    };
   };
   [key: string]: string | ((...args: any[]) => string) | any;
 }

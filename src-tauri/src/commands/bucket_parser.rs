@@ -25,6 +25,7 @@ impl Default for BucketFilterOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct BucketCsvRecord {
     pub name: String,
     pub full_name: String,
@@ -42,10 +43,25 @@ static BUCKET_CACHE: Lazy<tokio::sync::RwLock<HashMap<String, SearchableBucket>>
 
 // Get the cache file path in the app data directory
 fn get_cache_file_path() -> Result<PathBuf, String> {
-    let app_data_dir = dirs::data_dir()
-        .ok_or("Failed to get app data directory")?
-        .join("rscoop")
-        .join("cache");
+    // Try to use the correct app data directory
+    let app_data_dir = if let Some(data_dir) = dirs::data_dir() {
+        // Try Tauri app directory first (com.rscoop.app)
+        let tauri_dir = data_dir.join("com.rscoop.app");
+        if tauri_dir.exists() {
+            tauri_dir.join("cache")
+        } else {
+            // Fall back to the old rscoop directory in AppData\Local
+            dirs::data_local_dir()
+                .ok_or("Failed to get app local data directory")?
+                .join("rscoop")
+                .join("cache")
+        }
+    } else {
+        dirs::data_local_dir()
+            .ok_or("Failed to get app local data directory")?
+            .join("rscoop")
+            .join("cache")
+    };
 
     std::fs::create_dir_all(&app_data_dir)
         .map_err(|e| format!("Failed to create cache directory: {}", e))?;

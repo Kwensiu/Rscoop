@@ -428,6 +428,12 @@
       "updates_via_scoop": "通过 Scoop 更新",
       "upstream": "原版/AmarBego"
     },
+    "tray": {
+      "notification_title": "Rscoop - 最小化到托盘",
+      "notification_message": "Rscoop 已最小化到系统托盘，并将在后台继续运行。\n\n您可以：\n• 点击托盘图标恢复窗口\n• 右键单击托盘图标访问上下文菜单\n• 在设置 > 窗口行为中更改此行为\n\n您想要怎么做？",
+      "close_and_disable": "关闭并禁用托盘",
+      "keep_in_tray": "保持在托盘"
+    },
     "app_data": {
       "14_days": "14 天",
       "1_day": "1 天",
