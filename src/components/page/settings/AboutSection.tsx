@@ -9,6 +9,17 @@ import { t } from "../../../i18n";
 import settingsStore from "../../../stores/settings";
 import { invoke } from "@tauri-apps/api/core";
 
+// Custom update type for our hybrid update system
+interface CustomUpdateInfo {
+  version: string;
+  pub_date: string;
+  download_url: string;
+  signature: string;
+  notes: string;
+  body?: string;
+  channel: string;
+}
+
 export interface AboutSectionRef {
   checkForUpdates: (manual: boolean) => Promise<void>;
 }
@@ -23,8 +34,10 @@ export default function AboutSection(props: AboutSectionProps) {
   const { settings, setUpdateSettings } = settingsStore;
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
   const [updateInfo, setUpdateInfo] = createSignal<Update | null>(null);
+  const [customUpdateInfo, setCustomUpdateInfo] = createSignal<CustomUpdateInfo | null>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
   const [downloadProgress, setDownloadProgress] = createSignal<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
+  const [isUsingCustomUpdate, setIsUsingCustomUpdate] = createSignal(false);
 
   const handleChannelChange = async (channel: 'stable' | 'test') => {
     await setUpdateSettings({ channel });
@@ -119,6 +132,7 @@ export default function AboutSection(props: AboutSectionProps) {
 
       setUpdateStatus('checking');
       setUpdateError(null);
+      setIsUsingCustomUpdate(false);
 
       // Get the current update channel information
       let channelInfo;
@@ -129,57 +143,159 @@ export default function AboutSection(props: AboutSectionProps) {
         console.warn("Could not get update channel info:", configError);
       }
 
-      console.log(`Starting update check process for ${settings.update.channel} channel...`);
+      console.log(`Starting hybrid update check process for ${settings.update.channel} channel...`);
       
-      // Check for updates using the standard Tauri updater
+      // First, try to check for updates using the standard Tauri updater
       // Note: Tauri updater doesn't support dynamic endpoint configuration
       // The endpoint is determined by the configuration in tauri.conf.json or tauri.conf.test.json
-      // We're still using the standard check() function, but we have the channel info for reference
-      const update = await check();
-      console.log('Update check completed', { 
-        updateAvailable: !!update?.available,
-        version: update?.version,
-        channel: settings.update.channel,
-        channelInfo: channelInfo
-      });
-
-      if (update?.available) {
-        setUpdateStatus('available');
-        setUpdateInfo(update);
-        console.log('Update found', {
-          version: update.version,
-          body: update.body,
-          channel: settings.update.channel
+      let update: Update | null = null;
+      try {
+        update = await check();
+        console.log('Tauri update check completed', { 
+          updateAvailable: !!update?.available,
+          version: update?.version,
+          channel: settings.update.channel,
+          channelInfo: channelInfo
         });
+      } catch (tauriError) {
+        console.warn('Tauri update check failed:', tauriError);
+      }
 
-        // Only show dialog if user manually clicked "Check for updates"
-        if (manual) {
-          const versionText = update.version;
-          const bodyText = update.body || t("settings.about.no_release_notes");
-
-          const messageContent = t("settings.about.update_available_dialog", {
-            version: versionText,
-            body: bodyText
+      // If Tauri updater found an update, check if it matches the expected channel
+      if (update?.available) {
+        // Get current app version to determine if installed app is stable or test
+        const currentVersion = await invoke<string>("get_current_version");
+        const isCurrentVersionTest = currentVersion.includes("-test") || currentVersion.includes("beta");
+        
+        // For stable channel, always use Tauri updater if it found an update
+        // For test channel, we need to verify if the update matches our channel
+        const shouldUseTauriUpdate = 
+          settings.update.channel === 'stable' || 
+          (settings.update.channel === 'test' && !isCurrentVersionTest);
+        
+        if (shouldUseTauriUpdate) {
+          setUpdateStatus('available');
+          setUpdateInfo(update);
+          setIsUsingCustomUpdate(false);
+          console.log('Update found via Tauri updater', {
+            version: update.version,
+            body: update.body,
+            channel: settings.update.channel
           });
 
-          const shouldInstall = await ask(
-            messageContent,
-            {
-              title: t("settings.about.update_available"),
-              kind: "info",
-              okLabel: t("buttons.install"),
-              cancelLabel: t("buttons.cancel")
-            }
-          );
+          // Only show dialog if user manually clicked "Check for updates"
+          if (manual) {
+            const versionText = update.version;
+            const bodyText = update.body || t("settings.about.no_release_notes");
 
-          if (shouldInstall) {
-            await installAvailableUpdate();
+            const messageContent = t("settings.about.update_available_dialog", {
+              version: versionText,
+              body: bodyText
+            });
+
+            const shouldInstall = await ask(
+              messageContent,
+              {
+                title: t("settings.about.update_available"),
+                kind: "info",
+                okLabel: t("buttons.install"),
+                cancelLabel: t("buttons.cancel")
+              }
+            );
+
+            if (shouldInstall) {
+              await installAvailableUpdate();
+            }
           }
+          return;
+        } else {
+          console.log(`Tauri updater found version ${update.version} but it doesn't match channel ${settings.update.channel}, trying custom update check...`);
         }
-      } else {
+      }
+
+      // If Tauri updater didn't find an update or failed, try custom update check
+      console.log('No update found via Tauri updater, trying custom update check...');
+      try {
+        const customUpdate = await invoke<CustomUpdateInfo>("check_for_custom_update");
+        console.log('Custom update check completed', customUpdate);
+
+        // Check if the custom update is actually newer than current version
+        const currentVersion = await invoke<string>("get_current_version");
+        
+        // Special handling for channel switching
+        const isCurrentVersionTest = currentVersion.includes("-test") || currentVersion.includes("beta");
+        const isUpdateVersionTest = customUpdate.version.includes("-test") || customUpdate.version.includes("beta");
+        
+        // Determine if this update is appropriate for the current channel
+        let shouldOfferUpdate = false;
+        
+        if (settings.update.channel === 'stable') {
+          // For stable channel, only offer stable updates
+          shouldOfferUpdate = !isUpdateVersionTest && isVersionNewer(customUpdate.version, currentVersion);
+        } else if (settings.update.channel === 'test') {
+          // For test channel, prefer test updates, but stable updates are also acceptable
+          shouldOfferUpdate = isVersionNewer(customUpdate.version, currentVersion);
+        }
+        
+        if (shouldOfferUpdate) {
+          setUpdateStatus('available');
+          setCustomUpdateInfo(customUpdate);
+          setIsUsingCustomUpdate(true);
+          console.log('New version found via custom update check', {
+            version: customUpdate.version,
+            currentVersion,
+            channel: customUpdate.channel,
+            isCurrentVersionTest,
+            isUpdateVersionTest
+          });
+
+          // Only show dialog if user manually clicked "Check for updates"
+          if (manual) {
+            const versionText = customUpdate.version;
+            const bodyText = customUpdate.body || t("settings.about.no_release_notes");
+            const channelText = customUpdate.channel === 'test' ? t("update_channel.test") : t("update_channel.stable");
+
+            const messageContent = t("settings.about.update_available_dialog", {
+              version: `${versionText} (${channelText})`,
+              body: bodyText
+            });
+
+            const shouldInstall = await ask(
+              messageContent,
+              {
+                title: t("settings.about.update_available"),
+                kind: "info",
+                okLabel: t("buttons.install"),
+                cancelLabel: t("buttons.cancel")
+              }
+            );
+
+            if (shouldInstall) {
+              await installAvailableUpdate();
+            }
+          }
+        } else {
+          setUpdateStatus('idle');
+          if (manual) {
+            await message(t("settings.about.latest_version", { version: currentVersion }), {
+              title: t("settings.about.no_updates_available"),
+              kind: "info"
+            });
+          }
+          console.log('No suitable update found via custom update check', {
+            version: customUpdate.version,
+            channel: customUpdate.channel,
+            isCurrentVersionTest,
+            isUpdateVersionTest,
+            shouldOfferUpdate
+          });
+        }
+      } catch (customError) {
+        console.error('Custom update check failed:', customError);
+        
+        // If both Tauri and custom update checks failed, show the last version info from Tauri if available
         setUpdateStatus('idle');
         if (manual) {
-          // 显示服务器上的最新版本号，即使没有可用更新
           const messageText = update?.version
             ? t("settings.about.latest_version", { version: update.version })
             : t("settings.about.latest_version_unknown");
@@ -188,7 +304,7 @@ export default function AboutSection(props: AboutSectionProps) {
             kind: "info"
           });
         }
-        console.log('No updates available');
+        console.log('No updates available from either method');
       }
     } catch (error) {
       console.error('Failed to check for updates:', error);
@@ -208,72 +324,130 @@ export default function AboutSection(props: AboutSectionProps) {
     }
   };
 
+  // Helper function to compare versions
+  const isVersionNewer = (newVersion: string, currentVersion: string): boolean => {
+    try {
+      const parseVersion = (version: string): number[] => {
+        return version.split('.').map(part => {
+          // Handle pre-release versions like "1.5.0-beta"
+          const numericPart = part.split('-')[0];
+          return parseInt(numericPart, 10) || 0;
+        });
+      };
+
+      const newParts = parseVersion(newVersion);
+      const currentParts = parseVersion(currentVersion);
+
+      const maxLength = Math.max(newParts.length, currentParts.length);
+      for (let i = 0; i < maxLength; i++) {
+        const newPart = newParts[i] || 0;
+        const currentPart = currentParts[i] || 0;
+        
+        if (newPart > currentPart) return true;
+        if (newPart < currentPart) return false;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error comparing versions:', error);
+      // If version parsing fails, assume it's newer
+      return true;
+    }
+  };
+
   const installAvailableUpdate = async () => {
     try {
-      const currentUpdateInfo = updateInfo();
-      if (!currentUpdateInfo) {
-        throw new Error("No update information available");
-      }
-
-      setUpdateStatus('downloading');
-      setDownloadProgress({ downloaded: 0, total: null });
-      console.log('Starting update download...', { version: currentUpdateInfo.version });
-
-      // Download and install the update with progress reporting
-      await currentUpdateInfo.downloadAndInstall((progress) => {
-        console.log('Update progress event:', progress.event, progress);
-
-        if (progress.event === 'Started') {
-          console.log('Download started', { contentLength: progress.data.contentLength });
-          setDownloadProgress({
-            downloaded: 0,
-            total: progress.data.contentLength || null
-          });
-        } else if (progress.event === 'Progress') {
-          const newDownloaded = progress.data.chunkLength || 0;
-
-          setDownloadProgress(prev => {
-            const updatedDownloaded = prev.downloaded + newDownloaded;
-            return {
-              downloaded: updatedDownloaded,
-              total: prev.total
-            };
-          });
-
-          // Calculate percentage using the total from Started event
-          const currentProgress = downloadProgress();
-          const percent = currentProgress.total
-            ? Math.round((currentProgress.downloaded + newDownloaded) / currentProgress.total * 100)
-            : undefined;
-
-          if (percent !== undefined) {
-            console.log(`Download progress: ${percent}% (${currentProgress.downloaded + newDownloaded} bytes)`);
-          }
-        } else if (progress.event === 'Finished') {
-          console.log('Download finished, starting installation...');
-          setUpdateStatus('installing');
+      const usingCustomUpdate = isUsingCustomUpdate();
+      
+      if (usingCustomUpdate) {
+        // Install custom update
+        const currentCustomUpdateInfo = customUpdateInfo();
+        if (!currentCustomUpdateInfo) {
+          throw new Error("No custom update information available");
         }
-      });
 
-      console.log('Update installation completed successfully');
+        setUpdateStatus('downloading');
+        setDownloadProgress({ downloaded: 0, total: null });
+        console.log('Starting custom update download...', { version: currentCustomUpdateInfo.version });
 
-      // Restart the app after successful installation
-      const confirmed = await ask(
-        t("settings.about.update_complete"),
-        {
-          title: t("buttons.confirm"),
-          kind: "info",
-          okLabel: t("settings.about.restart_now"),
-          cancelLabel: t("buttons.later")
-        }
-      );
-
-      if (confirmed) {
-        console.log('User confirmed restart, relaunching application...');
-        await relaunch();
+        // For custom updates, we can't track progress easily, so show a simple indeterminate progress
+        setDownloadProgress({ downloaded: 0, total: null });
+        
+        // Download and install the custom update
+        await invoke("download_and_install_custom_update", { updateInfo: currentCustomUpdateInfo });
+        
+        // The custom update command will handle restarting the app
+        // So we just set the status to installing
+        setUpdateStatus('installing');
+        console.log('Custom update installation initiated');
+        
       } else {
-        console.log('User postponed restart');
-        setUpdateStatus('idle');
+        // Install Tauri update
+        const currentUpdateInfo = updateInfo();
+        if (!currentUpdateInfo) {
+          throw new Error("No update information available");
+        }
+
+        setUpdateStatus('downloading');
+        setDownloadProgress({ downloaded: 0, total: null });
+        console.log('Starting Tauri update download...', { version: currentUpdateInfo.version });
+
+        // Download and install the update with progress reporting
+        await currentUpdateInfo.downloadAndInstall((progress) => {
+          console.log('Update progress event:', progress.event, progress);
+
+          if (progress.event === 'Started') {
+            console.log('Download started', { contentLength: progress.data.contentLength });
+            setDownloadProgress({
+              downloaded: 0,
+              total: progress.data.contentLength || null
+            });
+          } else if (progress.event === 'Progress') {
+            const newDownloaded = progress.data.chunkLength || 0;
+
+            setDownloadProgress(prev => {
+              const updatedDownloaded = prev.downloaded + newDownloaded;
+              return {
+                downloaded: updatedDownloaded,
+                total: prev.total
+              };
+            });
+
+            // Calculate percentage using the total from Started event
+            const currentProgress = downloadProgress();
+            const percent = currentProgress.total
+              ? Math.round((currentProgress.downloaded + newDownloaded) / currentProgress.total * 100)
+              : undefined;
+
+            if (percent !== undefined) {
+              console.log(`Download progress: ${percent}% (${currentProgress.downloaded + newDownloaded} bytes)`);
+            }
+          } else if (progress.event === 'Finished') {
+            console.log('Download finished, starting installation...');
+            setUpdateStatus('installing');
+          }
+        });
+
+        console.log('Tauri update installation completed successfully');
+
+        // Restart the app after successful installation
+        const confirmed = await ask(
+          t("settings.about.update_complete"),
+          {
+            title: t("buttons.confirm"),
+            kind: "info",
+            okLabel: t("settings.about.restart_now"),
+            cancelLabel: t("buttons.later")
+          }
+        );
+
+        if (confirmed) {
+          console.log('User confirmed restart, relaunching application...');
+          await relaunch();
+        } else {
+          console.log('User postponed restart');
+          setUpdateStatus('idle');
+        }
       }
     } catch (error) {
       console.error('Failed to install update:', error);
@@ -348,19 +522,33 @@ export default function AboutSection(props: AboutSectionProps) {
                   <div class="alert alert-success shadow-sm">
                     <Download class="w-5 h-5" />
                     <div>
-                      <h3 class="font-bold">{t("settings.about.update_available")}</h3>
+                      <h3 class="font-bold">
+                        {t("settings.about.update_available")}
+                        {isUsingCustomUpdate() && (
+                          <span class="badge badge-sm badge-info ml-2">GitHub</span>
+                        )}
+                      </h3>
                       <div class="text-xs">
                         {t("settings.about.update_ready", {
-                          version: updateInfo()?.version || "unknown"
+                          version: isUsingCustomUpdate() 
+                            ? (customUpdateInfo()?.version || "unknown")
+                            : (updateInfo()?.version || "unknown")
                         })}
+                        {isUsingCustomUpdate() && customUpdateInfo()?.channel && (
+                          <span class="ml-2">
+                            ({customUpdateInfo()?.channel === 'test' ? t("update_channel.test") : t("update_channel.stable")})
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button class="btn btn-sm" onClick={installAvailableUpdate}>{t("buttons.install")}</button>
                   </div>
-                  <Show when={updateInfo()?.body}>
+                  <Show when={isUsingCustomUpdate() ? customUpdateInfo()?.body : updateInfo()?.body}>
                     <div class="bg-base-200 rounded-lg p-3 text-xs max-h-32 overflow-y-auto border border-base-content/5">
                       <div class="font-bold mb-1 opacity-70">{t("settings.about.release_notes")}</div>
-                      <div class="whitespace-pre-wrap opacity-80">{updateInfo()?.body || ''}</div>
+                      <div class="whitespace-pre-wrap opacity-80">
+                        {isUsingCustomUpdate() ? (customUpdateInfo()?.body || '') : (updateInfo()?.body || '')}
+                      </div>
                     </div>
                   </Show>
                 </div>
