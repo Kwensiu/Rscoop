@@ -1,11 +1,11 @@
 {
-  "version": "1.5.0",
-  "pub_date": "2025-12-10T20:54:16Z",
+  "notes": "Test update from test branch. Build #24",
+  "version": "1.4.8-beta.13",
+  "pub_date": "2025-12-10T19:08:49Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYk9QKy9ud28wM2toTm9hcjFmamd6dW4rb2gwTVFXU25GajJ0WXFObGo1SS90bzhtRWRaZWwxOEhPR0VraEJYWFN1Ry9IV3YwL3J4b0ZJY1ZMUDFodlFULzZoYlRzVmdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY1NDAwMDQ3CWZpbGU6cnNjb29wXzEuNS4wX3g2NC1zZXR1cC5leGUKUVk5cXhoSXhiSE8zbnBJUzhvVFZhdHN5UHhrREg4Qm5Va21aSlhPWGptM3ViUlZRMkwycGdXaGVuVkk1dTBUWDQrOHc5MXc0TkZNNEY5UWZuVGZjQ3c9PQo=",
-      "url": "https://github.com/Kwensiu/Rscoop/releases/download/v1.5.0/rscoop_1.5.0_x64-setup.exe"
+      "url": "https://github.com/Kwensiu/Rscoop/releases/download/v1.4.8-beta.13/Rscoop_1.4.8-beta.13_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYk9QKy9ud28wM3M4M0RzU0x2SkdubXp0MTF4TmV0UWx3YXl4RHhnZUlGcktWcXFmVmt2UEJQMTBkdWVKL1R1aGxaeTFEcFZZSTZMMXo1RkJidUxQT255Q0F2anozaVE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY1MzkzNzE3CWZpbGU6UnNjb29wXzEuNC44LWJldGEuMTNfeDY0LXNldHVwLmV4ZQprcHRCbnVFQUg5UXo0U205S2FZeW8zdWtDVUVqbXV3bnM0c0l4WTJHR1psUEJlTnREOHpDNCtBSDUzc0NvZjRVUC8wWVl1dnFsOXlUSUx5b2FleVFCZz09Cg=="
     }
-  },
-  "notes": "Test update pointing to stable version v1.5.0"
+  }
 }
