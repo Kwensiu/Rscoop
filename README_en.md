@@ -33,10 +33,14 @@ Refer to the upstream repository documentation for already implemented features.
 <summary>Click to expand</summary>
 <br>
 
-Implemented project internationalization using [Solid-JS i18n](https://primitives.solidjs.community/package/i18n/).
+Implemented project internationalization using [Solid-JS i18n](https://primitives.solidjs.community/package/i18n/).  
+
 Currently only supports switching between Chinese and English, and some texts may have issues.<br>
+
 ![i18n](docs/assets/images/i18n.png)
+
 >You can switch the display language from the language button in the upper right corner
+
 </details>
 
 ##
@@ -47,14 +51,19 @@ Currently only supports switching between Chinese and English, and some texts ma
 <summary>Click to expand</summary>
 <br>
 
-Theoretically just PowerShell
-Added automatic `scoop` prefix mode (toggleable)
-When entering Scoop commands, you can omit the `scoop` five letters and one space. ~~(WHAT?)~~<br>
+Theoretically just a PowerShell.  
+
+Added automatic `scoop` prefix mode (toggleable)  
+
+When entering Scoop commands, you can omit the `scoop` five letters and one space. ~~(WHAT?)~~ <br>
+
 ![Scoop Commands Input Field](docs/assets/images/CommandsInput.gif)
 
 **Note:**
-In some cases, the GUI cannot display certain error messages - this is a problem that occurs in various terminal-like interfaces.
+In some cases, the GUI cannot display certain error messages - this is a problem that occurs in various terminal-like interfaces.  
+
 >Located on the "Doctor" page
+
 </details>
 
 ##
@@ -65,10 +74,12 @@ In some cases, the GUI cannot display certain error messages - this is a problem
 <summary>Click to expand</summary>
 <br>
 
-Added Scoop configuration management component to quickly change Scoop config file content
+Added Scoop configuration management component to quickly change Scoop config file content.  
 
 ![ScoopConfig](docs/assets/images/ScoopConfig.png)
+
 >Located on the "Doctor" page
+
 </details>
 
 ##
@@ -79,13 +90,13 @@ Added Scoop configuration management component to quickly change Scoop config fi
 <summary>Click to expand</summary>
 <br>
 
-Added "Change Bucket" function to solve problems such as Bucket invalidation/renaming/debugging.
+Added "Change Bucket" function to solve problems such as Bucket invalidation/renaming/debugging.  
 
-Added secondary confirmation buttons for "Update" and "Uninstall" to prevent accidental operations.
+Added secondary confirmation buttons for "Update" and "Uninstall" to prevent accidental operations.  
 
-Also refactored the upstream `OperationModal`, which now supports minimizing individual panels.
+Also refactored the upstream `OperationModal`, which now supports minimizing individual panels.  
 
-**Note:** There is currently no solution for multi-instance minimized components. It is highly discouraged to run multiple Scoop instances simultaneously. Minimization is only for temporarily viewing other information.
+**Note:** There is currently no solution for multi-instance minimized components. It is highly discouraged to run multiple Scoop instances simultaneously. Minimization is only for temporarily viewing other information.<br>
 
 ![PackageInfo](./docs/assets/images/Packageinfo.gif)
 
@@ -99,11 +110,14 @@ Also refactored the upstream `OperationModal`, which now supports minimizing ind
 <summary>Click to expand</summary>
 <br>
 
-The software can now automatically detect the Scoop path,
-and check if the Scoop directory structure meets GUI expectations to prevent potential issues (not extensively tested)
+The software can now automatically detect the Scoop path,  
+
+and check if the Scoop directory structure meets GUI expectations to prevent potential issues (not extensively tested).<br>
 
 ![AutoDetect](docs/assets/images/AutoDetect.png)
+
 >Located in the "Managment" tab of the "Settings" page
+
 </details>
 
 ##
@@ -114,9 +128,9 @@ and check if the Scoop directory structure meets GUI expectations to prevent pot
 <summary>Click to expand</summary>
 <br>
 
-For testing purposes only, mainly created for practice. Action workflows often give me headaches...
+For testing purposes only, mainly created for practice. Action workflows often give me headaches...  
 
-**Note:** After switching channels, you need to restart to correctly obtain update information.
+**Note:** After switching channels, you need to restart to correctly obtain update information.<br>
 
 ![UpdateChannel](docs/assets/images/UpdateChannel.png)
 
@@ -130,14 +144,15 @@ For testing purposes only, mainly created for practice. Action workflows often g
 <summary>Click to expand</summary>
 <br>
 
-Improved usage of Tauri Store plugin in the software. Data is now saved locally
+Improved usage of Tauri Store plugin in the software. Data is now saved locally.  
 ```
 C:\Users\<Username>\AppData\Romaing\com.rscoop.app (User Data)
 C:\Users\<Username>\AppData\Local\com.rscoop.app (Webview Cache)
 # These can be cleaned up when uninstalling.
 ```
-Can adjust Rscoop log retention time and delete configuration and cache files generated by Rscoop
-Will **not** modify any data of Scoop itself.
+Can adjust Rscoop log retention time and delete configuration and cache files generated by Rscoop  
+
+Will **not** modify any data of Scoop itself.<br>
 
 ![RscoopData](docs/assets/images/RscoopData.png)
 
@@ -151,8 +166,9 @@ Will **not** modify any data of Scoop itself.
 <summary>Click to expand</summary>
 <br>
 
-For lazy people, an animated "Update All" button will be displayed globally in the lower right corner ~~with a bouncy animation~~.
-Of course, Rscoop has already implemented scheduled automatic bucket/software updates (added by AmarBego), so I've provided a toggle for displaying this button.
+For lazy people, an animated "Update All" button will be displayed globally in the lower right corner ~~with a bouncy animation~~.  
+
+Of course, Rscoop has already implemented scheduled automatic bucket/software updates (added by AmarBego), so I've provided a toggle for displaying this button.<br>
 
 ![UpdateAllButton](docs/assets/images/UpdateAllButton.png)
 
@@ -167,9 +183,9 @@ Of course, Rscoop has already implemented scheduled automatic bucket/software up
 <br>
 
 ## Search Page
-- Added refresh button and repository filtering
-- Added last update dates from manifest.json to package search results  
-- Implemented pagination for search lists to prevent lag from large data sets (max 8 items per page)
+- Added refresh button and repository filtering.  
+- Added last update dates from manifest.json to package search results.  
+- Implemented pagination for search lists to prevent lag from large data sets (max 8 items per page).  
 - "..."
 
 ## Buckets Page
