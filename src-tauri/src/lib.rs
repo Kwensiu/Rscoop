@@ -27,6 +27,8 @@ mod app_constants {
     pub const MAX_SLEEP_CHUNK_SECS: u64 = 60; // Check every minute at most
 }
 
+#[cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Set up panic handler for better crash reporting
@@ -248,6 +250,8 @@ pub fn run() {
             commands::update_config::reload_update_config,
             commands::update_log::get_update_logs,
             commands::update_log::get_all_update_logs,
+            commands::update_log::clear_all_update_logs,
+            commands::update_log::remove_update_log_entry,
             commands::update_log::add_update_log_entry,
             commands::update_log::get_logs_by_type,
             commands::update_config::get_update_channel,
@@ -580,60 +584,57 @@ async fn run_auto_update(app_handle: &tauri::AppHandle, run_started_at: u64) {
 // Update packages after updating buckets
 async fn update_packages_after_buckets(app_handle: &tauri::AppHandle, silent_update_enabled: bool) {
     log::info!("Starting auto package update after bucket refresh");
-
+    
     let mut package_update_logs = Vec::new();
-
+    
     // Notify UI that package update is starting only if not silent update
     if !silent_update_enabled {
         if let Some(window) = app_handle.get_webview_window("main") {
             let _ = window.emit("auto-operation-start", "Updating packages...");
-            let _ = window.emit(
-                "operation-output",
-                serde_json::json!({
-                    "line": "Starting automatic package update...",
-                    "source": "stdout"
-                }),
-            );
+            let _ = window.emit("operation-output", serde_json::json!({
+                "line": "Starting automatic package update...",
+                "source": "stdout"
+            }));
         }
     }
 
     let state = app_handle.state::<state::AppState>();
     match commands::update::update_all_packages_headless(app_handle.clone(), state).await {
-        Ok(_) => {
-            let log_line = "Package update completed successfully.";
-            package_update_logs.push(log_line.to_string());
-
+        Ok(update_details) => {
+            package_update_logs = update_details;
+            
             // Notify UI of success only if not silent update
             if !silent_update_enabled {
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    let _ = window.emit(
-                        "operation-output",
-                        serde_json::json!({
-                            "line": log_line,
+                    for line in &package_update_logs {
+                        let _ = window.emit("operation-output", serde_json::json!({
+                            "line": line,
                             "source": "stdout"
-                        }),
-                    );
-
-                    let _ = window.emit(
-                        "operation-finished",
-                        serde_json::json!({
-                            "success": true,
-                            "message": "Automatic package update completed successfully"
-                        }),
-                    );
+                        }));
+                    }
+                    
+                    let _ = window.emit("operation-finished", serde_json::json!({
+                        "success": true,
+                        "message": "Automatic package update completed successfully"
+                    }));
                 }
             }
-
+            
+            // Count successful updates
+            let success_count = package_update_logs.iter()
+                .filter(|line| line.contains("Updated") && !line.contains("up to date"))
+                .count() as u32;
+            
             // Create package update log entry
             let package_log_entry = commands::update_log::UpdateLogEntry {
                 timestamp: chrono::Utc::now(),
                 operation_type: "package".to_string(),
                 operation_result: "success".to_string(),
-                success_count: 1,
-                total_count: 1,
+                success_count: if success_count == 0 { 1 } else { success_count },
+                total_count: if package_update_logs.len() == 0 { 1 } else { package_update_logs.len() as u32 },
                 details: package_update_logs,
             };
-
+            
             // Add to log store
             if let Err(e) = commands::update_log::get_log_store().add_log_entry(package_log_entry) {
                 log::error!("Failed to save package update log: {}", e);
@@ -643,28 +644,22 @@ async fn update_packages_after_buckets(app_handle: &tauri::AppHandle, silent_upd
             log::warn!("Auto package headless update failed: {}", e);
             let error_line = format!("Error: {}", e);
             package_update_logs.push(error_line.clone());
-
+            
             // Notify UI of error only if not silent update
             if !silent_update_enabled {
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    let _ = window.emit(
-                        "operation-output",
-                        serde_json::json!({
-                            "line": error_line,
-                            "source": "stderr"
-                        }),
-                    );
-
-                    let _ = window.emit(
-                        "operation-finished",
-                        serde_json::json!({
-                            "success": false,
-                            "message": format!("Automatic package update failed: {}", e)
-                        }),
-                    );
+                    let _ = window.emit("operation-output", serde_json::json!({
+                        "line": error_line,
+                        "source": "stderr"
+                    }));
+                    
+                    let _ = window.emit("operation-finished", serde_json::json!({
+                        "success": false,
+                        "message": format!("Automatic package update failed: {}", e)
+                    }));
                 }
             }
-
+            
             // Create error log entry
             let error_log_entry = commands::update_log::UpdateLogEntry {
                 timestamp: chrono::Utc::now(),
@@ -674,7 +669,7 @@ async fn update_packages_after_buckets(app_handle: &tauri::AppHandle, silent_upd
                 total_count: 1,
                 details: package_update_logs,
             };
-
+            
             // Add to log store
             if let Err(e) = commands::update_log::get_log_store().add_log_entry(error_log_entry) {
                 log::error!("Failed to save package update error log: {}", e);

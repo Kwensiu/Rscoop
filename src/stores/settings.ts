@@ -30,6 +30,7 @@ interface Settings {
     autoUpdateInterval: string; // "off" | "1h" | "6h" | "24h"
     autoUpdatePackagesEnabled: boolean;
     silentUpdateEnabled: boolean;
+    updateHistoryEnabled: boolean;
   };
   update: {
     channel: 'stable' | 'test';
@@ -63,6 +64,7 @@ const defaultSettings: Settings = {
     autoUpdateInterval: "off",
     autoUpdatePackagesEnabled: false,
     silentUpdateEnabled: false,
+    updateHistoryEnabled: true, // 默认启用
   },
   update: {
     channel: "stable",

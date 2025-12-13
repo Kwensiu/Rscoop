@@ -125,6 +125,8 @@
     "close": "关闭",
     "confirm": "确认",
     "install": "安装",
+    "removeAll": "移除全部",
+    "removeSelected": "选择",
     "search": "搜索",
     "uninstall": "卸载",
     "update": "更新",
@@ -334,7 +336,7 @@
     "sure": "确定？",
     "switch": "切换",
     "switch_version": "切换版本",
-    "title": "{{name}}",
+    "title": " ",
     "uninstall": "卸载",
     "update": "更新",
     "update_date": "更新日期",
@@ -508,6 +510,8 @@
         "type": "类型",
         "view_details": "查看详情"
       },
+      "update_history_enabled": "启用更新历史记录",
+      "update_history_enabled_description": "启用后，将记录所有软件包和仓库的更新操作历史。禁用可节省内存使用。",
       "weeks": "周"
     },
     "category": {
@@ -580,21 +584,27 @@
       "title": "界面设置"
     },
     "update_history": {
+      "actions": "操作",
       "bucket_update": "仓库更新",
+      "clear_confirm": "确定要清除所有更新历史记录吗？",
+      "clear_error": "清除更新历史记录失败",
+      "delete_error": "删除更新记录失败",
       "details": "详情",
       "details_title": "更新详情",
       "failed": "失败",
-      "fetch_error": "获取更新记录失败",
-      "no_logs": "暂无更新记录",
+      "fetch_error": "获取更新历史记录失败",
+      "no_details": "无详细信息",
+      "no_logs": "暂无更新历史记录",
+      "no_logs_description": "没有日志描述",
       "package_update": "软件包更新",
       "partial": "部分成功",
       "result": "结果",
       "success": "成功",
       "success_rate": "成功率",
       "time": "时间",
-      "title": "更新历史记录（实验）",
+      "title": "更新历史记录",
       "type": "类型",
-      "view_details": "查看详情"
+      "view_details": "查看"
     },
     "virustotal": {
       "api_key": "VirusTotal API 密钥",

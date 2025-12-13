@@ -123,8 +123,8 @@ pub fn start_background_tasks(app: AppHandle) {
                             details: update_details,
                         };
                         
-                        // Add to log store
-                        if let Err(e) = crate::commands::update_log::get_log_store().add_log_entry(bucket_log_entry) {
+                        // Add to log store if enabled
+                        if let Err(e) = crate::commands::update_log::add_log_entry_if_enabled(&app, bucket_log_entry).await {
                             log::error!("Failed to save bucket update log: {}", e);
                         }
                         
@@ -179,8 +179,9 @@ pub fn start_background_tasks(app: AppHandle) {
                         if auto_update_packages {
                             log::info!("Auto package update task running after bucket refresh (headless with events)");
                             let state = app.state::<state::AppState>();
+                            let mut package_update_logs = Vec::new();
                             
-                            // Emit start event for package update (only if not in silent mode)
+                            // Emit start event for package update (with silent mode support)
                             if !silent_auto_update {
                                 if let Some(window) = app.get_webview_window("main") {
                                     let _ = window.emit("auto-operation-start", "Updating packages...");
@@ -192,28 +193,56 @@ pub fn start_background_tasks(app: AppHandle) {
                             }
                             
                             match commands::update::update_all_packages_headless(app.clone(), state).await {
-                                Ok(_) => {
+                                Ok(update_details) => {
+                                    package_update_logs = update_details;
+                                    
+                                    // Emit package update completion only if not silent update
                                     if !silent_auto_update {
                                         if let Some(window) = app.get_webview_window("main") {
-                                            let _ = window.emit("operation-output", serde_json::json!({
-                                                "line": "Package update completed successfully.",
-                                                "source": "stdout"
-                                            }));
+                                            for line in &package_update_logs {
+                                                let _ = window.emit("operation-output", serde_json::json!({
+                                                    "line": line,
+                                                    "source": "stdout"
+                                                }));
+                                            }
                                             let _ = window.emit("operation-finished", serde_json::json!({
                                                 "success": true,
                                                 "message": "Automatic package update completed successfully"
                                             }));
                                         }
-                                    } else {
-                                        log::info!("Silent package update completed successfully");
+                                    }
+                                    
+                                    // Count successful updates
+                                    let success_count = package_update_logs.iter()
+                                        .filter(|line| line.contains("Updated") && !line.contains("up to date"))
+                                        .count() as u32;
+                                    
+                                    // Create package update log entry
+                                    use crate::commands::update_log::UpdateLogEntry;
+                                    let package_log_entry = UpdateLogEntry {
+                                        timestamp: chrono::Utc::now(),
+                                        operation_type: "package".to_string(),
+                                        operation_result: "success".to_string(),
+                                        success_count: if success_count == 0 { 1 } else { success_count },
+                                        total_count: if package_update_logs.len() == 0 { 1 } else { package_update_logs.len() as u32 },
+                                        details: package_update_logs,
+                                    };
+                                    
+                                    // Add to log store if enabled
+                                    if let Err(e) = crate::commands::update_log::add_log_entry_if_enabled(&app, package_log_entry).await {
+                                        log::error!("Failed to save package update log: {}", e);
                                     }
                                 }
                                 Err(e) => {
                                     log::warn!("Auto package headless update failed: {}", e);
+                                    let log_line = format!("Error: {}", e);
+                                    package_update_logs.push(log_line.clone());
+                                    
+                                    // Emit failure to modal (only if not in silent mode)
                                     if !silent_auto_update {
                                         if let Some(window) = app.get_webview_window("main") {
                                             let _ = window.emit("operation-output", serde_json::json!({
-                                                "line": format!("Error: {}", e),
+                                                "line": log_line.clone(),
                                                 "source": "stderr"
                                             }));
                                             let _ = window.emit("operation-finished", serde_json::json!({
@@ -221,8 +250,22 @@ pub fn start_background_tasks(app: AppHandle) {
                                                 "message": format!("Automatic package update failed: {}", e)
                                             }));
                                         }
-                                    } else {
-                                        log::warn!("Silent package update failed: {}", e);
+                                    }
+                                    
+                                    // Create error log entry
+                                    use crate::commands::update_log::UpdateLogEntry;
+                                    let error_log_entry = UpdateLogEntry {
+                                        timestamp: chrono::Utc::now(),
+                                        operation_type: "package".to_string(),
+                                        operation_result: "failed".to_string(),
+                                        success_count: 0,
+                                        total_count: 1,
+                                        details: package_update_logs,
+                                    };
+                                    
+                                    // Add to log store if enabled
+                                    if let Err(e) = crate::commands::update_log::add_log_entry_if_enabled(&app, error_log_entry).await {
+                                        log::error!("Failed to save package update error log: {}", e);
                                     }
                                 }
                             }

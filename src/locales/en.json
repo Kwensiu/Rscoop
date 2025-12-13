@@ -125,6 +125,8 @@
     "close": "Close",
     "confirm": "Confirm",
     "install": "Install",
+    "removeAll": "Remove All",
+    "removeSelected": "Remove Selected",
     "search": "Search",
     "uninstall": "Uninstall",
     "update": "Update",
@@ -508,6 +510,8 @@
         "type": "Type",
         "view_details": "View Details"
       },
+      "update_history_enabled": "Enable Update History",
+      "update_history_enabled_description": "When enabled, all package and bucket update operations will be recorded. Disabling can save memory usage.",
       "weeks": "Weeks"
     },
     "category": {
@@ -580,21 +584,27 @@
       "title": "UI Settings"
     },
     "update_history": {
+      "actions": "Actions",
       "bucket_update": "Bucket Update",
+      "clear_confirm": "Are you sure you want to clear all update history?",
+      "clear_error": "Failed to clear update history",
+      "delete_error": "Failed to delete update record",
       "details": "Details",
       "details_title": "Update Details",
       "failed": "Failed",
-      "fetch_error": "Failed to fetch update logs",
-      "no_logs": "No update logs available",
+      "fetch_error": "Failed to fetch update history",
+      "no_details": "No detailed information available",
+      "no_logs": "No update history found",
+      "no_logs_description": "No logs description",
       "package_update": "Package Update",
       "partial": "Partial",
       "result": "Result",
       "success": "Success",
       "success_rate": "Success Rate",
       "time": "Time",
-      "title": "Update History (Beta)",
+      "title": "Update History",
       "type": "Type",
-      "view_details": "View Details"
+      "view_details": "View"
     },
     "virustotal": {
       "api_key": "VirusTotal API Key",
