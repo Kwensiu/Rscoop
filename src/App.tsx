@@ -14,9 +14,11 @@ import AnimatedButton from "./components/AnimatedButton";
 import OperationModal from "./components/OperationModal.tsx";
 import { listen, emit } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
+import { createStoredSignal } from "./hooks/createStoredSignal";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { invoke } from "@tauri-apps/api/core";
 import installedPackagesStore from "./stores/installedPackagesStore";
 import settingsStore from "./stores/settings";
 import { checkCwdMismatch } from "./utils/installCheck";
@@ -56,7 +58,7 @@ function App() {
     const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
 
     // Track if the app is installed via Scoop
-    const [isScoopInstalled] = createSignal<boolean>(false);
+    const [isScoopInstalled, setIsScoopInstalled] = createSignal<boolean>(false);
 
     const isReady = createMemo(() => readyFlag() === "true");
 
