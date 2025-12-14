@@ -227,8 +227,8 @@ function createSettingsStore() {
     });
   };
 
-  const setTheme = async (theme: 'dark' | 'light') => {
-    await saveSettings({ theme });
+  const setTheme = (theme: 'dark' | 'light') => {
+    saveSettings({ theme });
   };
 
   const setDebugSettings = async (newDebugSettings: Partial<Settings['debug']>) => {

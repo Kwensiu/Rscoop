@@ -14,11 +14,9 @@ import AnimatedButton from "./components/AnimatedButton";
 import OperationModal from "./components/OperationModal.tsx";
 import { listen, emit } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
-import { createStoredSignal } from "./hooks/createStoredSignal";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { invoke } from "@tauri-apps/api/core";
 import installedPackagesStore from "./stores/installedPackagesStore";
 import settingsStore from "./stores/settings";
 import { checkCwdMismatch } from "./utils/installCheck";
@@ -58,7 +56,7 @@ function App() {
     const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
 
     // Track if the app is installed via Scoop
-    const [isScoopInstalled, setIsScoopInstalled] = createSignal<boolean>(false);
+    const [isScoopInstalled] = createSignal<boolean>(false);
 
     const isReady = createMemo(() => readyFlag() === "true");
 
@@ -440,7 +438,7 @@ function App() {
                 </div>
             </Show>
 
-            <Show when={!isReady() && !error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
+            <Show when={!isReady() && !error()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold mb-4">{t('app.title')}</h1>
                     <p>{t('messages.loading')}</p>
@@ -454,7 +452,7 @@ function App() {
                 </div>
             </Show>
 
-            <Show when={error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
+            <Show when={error()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold text-error mb-4">{t('status.error')}</h1>
                     <p>{error()}</p>

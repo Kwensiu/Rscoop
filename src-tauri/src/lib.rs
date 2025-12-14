@@ -4,6 +4,7 @@ mod commands;
 mod models;
 mod state;
 mod tray;
+mod scheduler;
 pub mod utils;
 
 use crate::commands::settings::detect_scoop_path;
