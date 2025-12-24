@@ -162,6 +162,29 @@ function BucketInfoModal(props: BucketInfoModalProps) {
       console.error('Failed to remove bucket:', error);
     }
   };
+
+  // Handle bucket refresh
+  const handleRefreshBucket = async () => {
+    const name = bucketName();
+    if (!name) return;
+
+    try {
+      const result = await bucketInstall.updateBucket(name);
+
+      if (result.success) {
+        console.log('Bucket refreshed successfully from modal');
+        // Refresh bucket list and manifests
+        props.onBucketInstalled?.();
+        if (props.onFetchManifests) {
+          await props.onFetchManifests(name);
+        }
+      } else {
+        console.error('Bucket refresh failed:', result.message);
+      }
+    } catch (error) {
+      console.error('Failed to refresh bucket:', error);
+    }
+  };
   const orderedDetails = createMemo(() => {
     if (!props.bucket) return [];
 
@@ -204,7 +227,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
         <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
           <Ellipsis class="w-5 h-5" />
         </div>
-        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-100">
+        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-[100]">
           <Show when={props.bucket?.path}>
             <li>
               <button type="button" onClick={async (e) => {
@@ -224,7 +247,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
           </Show>
           <Show when={isInstalled()}>
             <li>
-              <button type="button" onClick={(e) => { e.stopPropagation(); /* TODO: Refresh Bucket */ }}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleRefreshBucket(); }}>
                 <RefreshCw class="w-4 h-4 mr-2" />
                 {t("bucket_info.refresh_bucket")}
               </button>
