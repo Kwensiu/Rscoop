@@ -1,4 +1,11 @@
-# Release Notes 1.5.1
+# Release Notes 1.5.2
+
+## [1.5.2] - 2025-12-25
+
+修复了多个界面和功能问题，提升了用户体验和系统稳定性。
+Fixed multiple interface and functional issues, improving user experience and system stability.
+
+---
 
 ## [1.5.1] - 2025-12-11
 
