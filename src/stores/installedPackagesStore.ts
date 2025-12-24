@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, createRoot } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, UpdatablePackage } from "../types/scoop";
 import heldStore from "./held";
@@ -7,13 +7,14 @@ export interface DisplayPackage extends ScoopPackage {
   available_version?: string;
 }
 
-const [packages, setPackages] = createSignal<DisplayPackage[]>([]);
-const [loading, setLoading] = createSignal(false);
-const [error, setError] = createSignal<string | null>(null);
-const [uniqueBuckets, setUniqueBuckets] = createSignal<string[]>(['all']);
-const [isLoaded, setIsLoaded] = createSignal(false);
-const [isCheckingForUpdates, setIsCheckingForUpdates] = createSignal(false);
-const [versionedPackages, setVersionedPackages] = createSignal<string[]>([]);
+function createInstalledPackagesStore() {
+  const [packages, setPackages] = createSignal<DisplayPackage[]>([]);
+  const [loading, setLoading] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
+  const [uniqueBuckets, setUniqueBuckets] = createSignal<string[]>(['all']);
+  const [isLoaded, setIsLoaded] = createSignal(false);
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = createSignal(false);
+  const [versionedPackages, setVersionedPackages] = createSignal<string[]>([]);
 
 const checkForUpdates = async () => {
   setIsCheckingForUpdates(true);
@@ -96,23 +97,24 @@ const refetch = async () => {
   }
 }
 
-const isPackageVersioned = (packageName: string) => {
-  return versionedPackages().includes(packageName);
-};
+  const isPackageVersioned = (packageName: string) => {
+    return versionedPackages().includes(packageName);
+  };
 
-const installedPackagesStore = {
-  packages,
-  loading,
-  error,
-  uniqueBuckets,
-  isLoaded,
-  isCheckingForUpdates,
-  versionedPackages,
-  isPackageVersioned,
-  fetch: fetchInstalledPackages,
-  refetch,
-  checkForUpdates,
-  fetchVersionedPackages,
-};
+  return {
+    packages,
+    loading,
+    error,
+    uniqueBuckets,
+    isLoaded,
+    isCheckingForUpdates,
+    versionedPackages,
+    isPackageVersioned,
+    fetch: fetchInstalledPackages,
+    refetch,
+    checkForUpdates,
+    fetchVersionedPackages,
+  };
+}
 
-export default installedPackagesStore; 
+export default createRoot(createInstalledPackagesStore); 

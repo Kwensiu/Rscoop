@@ -28,7 +28,7 @@ type UpdateState = {
 };
 
 function BucketPage() {
-  const { buckets, loading, error, fetchBuckets, markForRefresh, getBucketManifests } = useBuckets();
+  const { buckets, loading, error, fetchBuckets, markForRefresh, getBucketManifests, cleanup } = useBuckets();
   const packageInfo = usePackageInfo();
 
   const [selectedBucket, setSelectedBucket] = createSignal<BucketInfo | null>(null);
@@ -66,6 +66,7 @@ function BucketPage() {
 
   onCleanup(() => {
     cleanupTimers();
+    cleanup();
   });
 
   const toggleSearch = () => {

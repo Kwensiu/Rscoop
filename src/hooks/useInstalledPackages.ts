@@ -1,4 +1,4 @@
-import { createSignal, onMount, createMemo } from "solid-js";
+import { createSignal, onMount, createMemo, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { createStoredSignal } from "./createStoredSignal";
 import heldStore from "../stores/held";
@@ -42,7 +42,7 @@ export function useInstalledPackages() {
   // Use shared hooks
   const packageOperations = usePackageOperations();
   const packageInfo = usePackageInfo();
-  const { buckets, fetchBuckets } = useBuckets();
+  const { buckets, fetchBuckets, cleanup: bucketsCleanup } = useBuckets();
   
   // State for auto-showing versions in modal
   const [autoShowVersions, setAutoShowVersions] = createSignal(false);
@@ -60,6 +60,10 @@ export function useInstalledPackages() {
   onMount(() => {
     fetch();
     fetchBuckets();
+  });
+
+  onCleanup(() => {
+    bucketsCleanup();
   });
 
   const checkForUpdates = () => {

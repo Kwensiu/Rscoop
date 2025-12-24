@@ -1,4 +1,4 @@
-import { createSignal, onCleanup} from "solid-js";
+import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface BucketInfo {
@@ -19,6 +19,7 @@ interface UseBucketsReturn {
   markForRefresh: () => void;
   getBucketInfo: (bucketName: string) => Promise<BucketInfo | null>;
   getBucketManifests: (bucketName: string) => Promise<string[]>;
+  cleanup: () => void;
 }
 
 let cachedBuckets: BucketInfo[] | null = null;
@@ -103,9 +104,10 @@ export function useBuckets(): UseBucketsReturn {
     }
   });
 
-  onCleanup(() => {
+  // Return cleanup function instead of using onCleanup directly
+  const cleanup = () => {
     unsubscribe();
-  });
+  };
 
   const getBucketInfo = async (bucketName: string): Promise<BucketInfo | null> => {
     try {
@@ -133,5 +135,6 @@ export function useBuckets(): UseBucketsReturn {
     markForRefresh,
     getBucketInfo,
     getBucketManifests,
+    cleanup,
   };
 }
