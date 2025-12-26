@@ -337,7 +337,7 @@ function OperationModal(props: OperationModalProps) {
   return (
     <Portal>
       <Show when={rendered() && !isMinimized()}>
-        <div class="fixed inset-0 flex items-center justify-center z-50 p-2">
+        <div class="fixed inset-0 flex items-center justify-center z-60 p-2">
           <div
             class="absolute inset-0 transition-all duration-300 ease-out"
             classList={{
