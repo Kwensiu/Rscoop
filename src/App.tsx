@@ -77,6 +77,7 @@ function App() {
 
     // Auto-update modal state
     const [autoUpdateTitle, setAutoUpdateTitle] = createSignal<string | null>(null);
+    
 
     // Minimized state
     const [minimizedState, setMinimizedState] = createSignal({
@@ -472,25 +473,25 @@ function App() {
                     <div class="drawer-content flex flex-col h-screen">
                         <Header currentView={view()} onNavigate={setView} />
                         <main class="flex-1 p-6 overflow-y-auto overflow-x-hidden z-1">
-                            <PersistentPage view="search" currentView={view()}>
+                            <Show when={view() === "search"}>
                                 <SearchPage />
-                            </PersistentPage>
-                            <PersistentPage view="bucket" currentView={view()}>
+                            </Show>
+                            <Show when={view() === "bucket"}>
                                 <BucketPage />
-                            </PersistentPage>
-                            <PersistentPage view="installed" currentView={view()}>
+                            </Show>
+                            <Show when={view() === "installed"}>
                                 <InstalledPage onNavigate={setView} />
-                            </PersistentPage>
-                            <PersistentPage view="settings" currentView={view()}>
+                            </Show>
+                            <Show when={view() === "settings"}>
                                 <SettingsPage
                                     activeSection=""
                                     onSectionChange={() => { }}
                                     isScoopInstalled={isScoopInstalled()}
                                 />
-                            </PersistentPage>
-                            <PersistentPage view="doctor" currentView={view()}>
+                            </Show>
+                            <Show when={view() === "doctor"}>
                                 <DoctorPage />
-                            </PersistentPage>
+                            </Show>
                         </main>
                     </div>
                     <div class="drawer-side">
@@ -526,13 +527,6 @@ function App() {
                     />
                 </Show>
                 <DebugModal />
-                <OperationModal
-                    title={packageOperations.operationTitle()}
-                    onClose={packageOperations.closeOperationModal}
-                    nextStep={packageOperations.operationNextStep() ?? undefined}
-                    isScan={packageOperations.isScanning()}
-                    onInstallConfirm={packageOperations.handleInstallConfirm}
-                />
                 <MinimizedIndicator
                     title={minimizedState().title}
                     visible={minimizedState().showIndicator}

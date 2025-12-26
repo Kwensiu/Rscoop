@@ -1,5 +1,5 @@
 import PackageInfoModal from "../components/PackageInfoModal";
-// import OperationModal from "../components/OperationModal";
+import OperationModal from "../components/OperationModal";
 
 import { useSearch } from "../hooks/useSearch";
 import SearchBar from "../components/page/search/SearchBar";
@@ -23,15 +23,15 @@ function SearchPage() {
     info,
     infoLoading,
     infoError,
-    // operationTitle,
-    // operationNextStep,
-    // isScanning,
+    operationTitle,
+    operationNextStep,
+    isScanning,
     handleInstall,
     handleUninstall,
-    // handleInstallConfirm,
+    handleInstallConfirm,
     fetchPackageInfo,
     closeModal,
-    // closeOperationModal,
+    closeOperationModal,
     cleanup,
     restoreSearchResults,
     refreshSearchResults,
@@ -141,7 +141,6 @@ function SearchPage() {
           // The actual refresh will happen in closeOperationModal when the operation completes
         }}
       />
-      {/*
       <OperationModal
         title={operationTitle()}
         onClose={closeOperationModal}
@@ -149,7 +148,6 @@ function SearchPage() {
         onInstallConfirm={handleInstallConfirm}
         nextStep={operationNextStep() ?? undefined}
       />
-      */}
     </div>
   );
 }

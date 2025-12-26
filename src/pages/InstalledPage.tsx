@@ -1,6 +1,7 @@
 import { For, Show, createSignal, createMemo, onMount } from "solid-js";
 import PackageInfoModal from "../components/PackageInfoModal";
 import ScoopStatusModal from "../components/ScoopStatusModal";
+import OperationModal from "../components/OperationModal";
 import { useInstalledPackages } from "../hooks/useInstalledPackages";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
 import PackageListView from "../components/page/installed/PackageListView";
@@ -27,6 +28,8 @@ function InstalledPage(props: InstalledPageProps) {
     selectedBucket, setSelectedBucket,
     selectedPackage, info, infoLoading, infoError,
     setOperationTitle,
+    operationTitle,
+    operationNextStep,
     operatingOn,
     scoopStatus,
     statusLoading,
@@ -55,6 +58,7 @@ function InstalledPage(props: InstalledPageProps) {
     setNewBucketName,
     handleChangeBucketConfirm,
     handleChangeBucketCancel,
+    handleCloseOperationModal,
     // Buckets for selection
     buckets
   } = useInstalledPackages();
@@ -241,6 +245,11 @@ function InstalledPage(props: InstalledPageProps) {
         onPackageStateChanged={fetchInstalledPackages}
         onChangeBucket={handleOpenChangeBucket}
         setOperationTitle={setOperationTitle}
+      />
+      <OperationModal
+        title={operationTitle()}
+        onClose={handleCloseOperationModal}
+        nextStep={operationNextStep() ?? undefined}
       />
       <ScoopStatusModal
         isOpen={showStatusModal()}

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, For, Show, Component } from "solid-js";
+import { createSignal, createEffect, onCleanup, For, Show, Component, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
 import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
@@ -99,6 +99,9 @@ interface OperationModalProps {
   onInstallConfirm?: () => void;
 }
 
+// Global state to ensure only one OperationModal is active at a time
+const [activeModalId, setActiveModalId] = createSignal<string | null>(null);
+
 function OperationModal(props: OperationModalProps) {
   const [output, setOutput] = createSignal<OperationOutput[]>([]);
   const [result, setResult] = createSignal<OperationResult | null>(null);
@@ -111,6 +114,9 @@ function OperationModal(props: OperationModalProps) {
   const [isMinimized, setIsMinimized] = createSignal(false);
   const [isMinimizing, setIsMinimizing] = createSignal(false); // For animation purposes
 
+  // Unique ID for this modal instance
+  const modalId = createMemo(() => `${props.title || 'unknown'}-${Date.now()}-${Math.random()}`);
+
   // This effect now correctly manages the lifecycle of the listeners
   let scrollRef: HTMLDivElement | undefined;
 
@@ -121,76 +127,107 @@ function OperationModal(props: OperationModalProps) {
     let vtResultListener: UnlistenFn | undefined;
 
     const setupListeners = async () => {
-      // Common output listener for all operations
-      outputListener = await listen<OperationOutput>("operation-output", (event) => {
-        setOutput(prev => [...prev, event.payload]);
-      });
-
-      if (props.isScan) {
-        // Listen for the special VirusTotal result event
-        vtResultListener = await listen<VirustotalResult>("virustotal-scan-finished", (event) => {
-          if (event.payload.detections_found || event.payload.is_api_key_missing) {
-            setScanWarning(event.payload);
-          } else {
-            props.onInstallConfirm?.();
-          }
-
-          // Update minimized indicator with error state when scan finishes with warnings
-          if (event.payload.detections_found || event.payload.is_api_key_missing) {
-            emit('panel-minimize-state', {
-              isMinimized: true,
-              showIndicator: true,
-              title: props.title,
-              result: 'error'
-            } as MinimizedState);
-          }
+      try {
+        // Common output listener for all operations
+        outputListener = await listen<OperationOutput>("operation-output", (event) => {
+          setOutput(prev => {
+            const newOutput = [...prev, event.payload];
+            // Limit output to last 1000 lines to prevent memory leaks
+            if (newOutput.length > 1000) {
+              return newOutput.slice(-1000);
+            }
+            return newOutput;
+          });
         });
-      } else {
-        // Standard listener for install, update, etc.
-        standardResultListener = await listen<OperationResult>("operation-finished", (event) => {
-          setResult(event.payload);
-          if (event.payload.success && props.nextStep) {
-            setShowNextStep(true);
-          }
 
-          // Update minimized indicator with result state
-          emit('panel-minimize-state', {
-            isMinimized: false,
-            showIndicator: false,
-            title: props.title,
-            result: event.payload.success ? 'success' : 'error'
-          } as MinimizedState);
+        if (props.isScan) {
+          // Listen for the special VirusTotal result event
+          vtResultListener = await listen<VirustotalResult>("virustotal-scan-finished", (event) => {
+            if (event.payload.detections_found || event.payload.is_api_key_missing) {
+              setScanWarning(event.payload);
+            } else {
+              props.onInstallConfirm?.();
+            }
+
+            // Update minimized indicator with error state when scan finishes with warnings
+            if (event.payload.detections_found || event.payload.is_api_key_missing) {
+              emit('panel-minimize-state', {
+                isMinimized: true,
+                showIndicator: true,
+                title: props.title,
+                result: 'error'
+              } as MinimizedState);
+            }
+          });
+        } else {
+          // Standard listener for install, update, etc.
+          standardResultListener = await listen<OperationResult>("operation-finished", (event) => {
+            setResult(event.payload);
+            if (event.payload.success && props.nextStep) {
+              setShowNextStep(true);
+            }
+
+            // Update minimized indicator with result state
+            emit('panel-minimize-state', {
+              isMinimized: false,
+              showIndicator: false,
+              title: props.title,
+              result: event.payload.success ? 'success' : 'error'
+            } as MinimizedState);
+          });
+        }
+      } catch (error) {
+        console.error("Failed to setup operation listeners:", error);
+        // Set error result to notify user
+        setResult({
+          success: false,
+          message: "Failed to initialize operation monitoring"
         });
       }
     };
 
     // Only set up listeners when the panel is active (has a title)
     if (props.title) {
-      // Reset state for the new operation
-      setOutput([]);
-      setResult(null);
-      setShowNextStep(false);
-      setScanWarning(null);
+      // Check if this modal should be active
+      const currentActive = activeModalId();
+      const shouldBeActive = !currentActive || currentActive === modalId();
 
-      setRendered(true);
-      setIsMinimizing(true);
+      if (shouldBeActive) {
+        // Claim the active modal slot
+        setActiveModalId(modalId());
 
-      // Use a single requestAnimationFrame to reduce redraws
-      requestAnimationFrame(() => {
-        setIsMinimizing(false);
-      });
+        // Reset state for the new operation
+        setOutput([]);
+        setResult(null);
+        setShowNextStep(false);
+        setScanWarning(null);
 
-      setupListeners();
+        setRendered(true);
+        setIsMinimizing(true);
 
-      setIsMinimized(false); // Reset minimized state when new operation starts
+        // Use a single requestAnimationFrame to reduce redraws
+        requestAnimationFrame(() => {
+          setIsMinimizing(false);
+        });
 
-      // Emit initial minimized state with in-progress status
-      emit('panel-minimize-state', {
-        isMinimized: false,
-        showIndicator: false,
-        title: props.title,
-        result: 'in-progress'
-      } as MinimizedState);
+        setupListeners();
+
+        setIsMinimized(false); // Reset minimized state when new operation starts
+
+        // Emit initial minimized state with in-progress status
+        emit('panel-minimize-state', {
+          isMinimized: false,
+          showIndicator: false,
+          title: props.title,
+          result: 'in-progress'
+        } as MinimizedState);
+      }
+    } else {
+      // If this modal no longer has a title, release the active slot if it owns it
+      if (activeModalId() === modalId()) {
+        setActiveModalId(null);
+        setRendered(false);
+      }
     }
 
     // This cleanup runs whenever the effect re-runs or the component is unmounted.
@@ -326,9 +363,18 @@ function OperationModal(props: OperationModalProps) {
     if (scrollRef && output().length > 0 && !isMinimized()) {
       // Use requestAnimationFrame to ensure DOM is updated before scrolling
       requestAnimationFrame(() => {
-        const isNearBottom = scrollRef!.scrollHeight - scrollRef!.scrollTop <= scrollRef!.clientHeight + 100;
-        if (isNearBottom) {
-          scrollRef!.scrollTop = scrollRef!.scrollHeight;
+        const container = scrollRef!;
+        const scrollTop = container.scrollTop;
+        const scrollHeight = container.scrollHeight;
+        const clientHeight = container.clientHeight;
+
+        // Check if user is near bottom (within 50px of bottom) or if content is short enough to fit entirely
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        const isNearBottom = distanceFromBottom <= 50;
+        const contentFits = scrollHeight <= clientHeight;
+
+        if (isNearBottom || contentFits) {
+          container.scrollTop = scrollHeight;
         }
       });
     }
@@ -336,7 +382,7 @@ function OperationModal(props: OperationModalProps) {
 
   return (
     <Portal>
-      <Show when={rendered() && !isMinimized()}>
+      <Show when={rendered() && !isMinimized() && activeModalId() === modalId()}>
         <div class="fixed inset-0 flex items-center justify-center z-60 p-2">
           <div
             class="absolute inset-0 transition-all duration-300 ease-out"
@@ -374,7 +420,7 @@ function OperationModal(props: OperationModalProps) {
 
             <div
               ref={scrollRef}
-              class="bg-black text-white font-mono text-xs p-4 rounded-lg mx-4 my-3 overflow-y-auto flex-grow"
+              class="bg-black text-white font-mono text-xs p-4 rounded-lg mx-4 my-3 overflow-y-auto grow"
               style="white-space: pre-wrap; word-break: break-word;"
             >
               <For each={output()}>
