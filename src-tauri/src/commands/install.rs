@@ -10,8 +10,8 @@ use tauri::{AppHandle, State, Window};
 ///
 /// # Arguments
 /// * `window` - The Tauri window to emit events to.
-/// * `package_name` - The name of the package to install.
-/// * `bucket` - The name of the bucket to install from. If empty or "None", the default buckets are used.
+/// * `package_name` - The name of package to install.
+/// * `bucket` - The name of bucket to install from. If empty or "None", default buckets are used.
 #[tauri::command]
 pub async fn install_package(
     window: Window,
@@ -29,7 +29,9 @@ pub async fn install_package(
         bucket_opt.unwrap_or("default")
     );
 
-    scoop::execute_scoop(window, ScoopOp::Install, Some(&package_name), bucket_opt).await?;
+    let operation_id = Some(format!("install-{}-{}", package_name, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()));
+
+    scoop::execute_scoop(window, ScoopOp::Install, Some(&package_name), bucket_opt, operation_id).await?;
     invalidate_manifest_cache().await;
     invalidate_installed_cache(state.clone()).await;
 

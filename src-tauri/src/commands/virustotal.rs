@@ -65,6 +65,7 @@ pub async fn scan_package(
                 powershell::StreamOutput {
                     line,
                     source: "stdout".to_string(),
+                    operation_id: None,
                 },
             ) {
                 log::error!("Failed to emit stdout event: {}", e);
@@ -81,6 +82,7 @@ pub async fn scan_package(
                 powershell::StreamOutput {
                     line,
                     source: "stderr".to_string(),
+                    operation_id: None,
                 },
             ) {
                 log::error!("Failed to emit stderr event: {}", e);

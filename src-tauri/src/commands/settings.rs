@@ -257,6 +257,7 @@ pub async fn run_scoop_command(window: tauri::Window, command: String) -> Result
         crate::commands::powershell::EVENT_OUTPUT,
         crate::commands::powershell::EVENT_FINISHED,
         crate::commands::powershell::EVENT_CANCEL,
+        None,
     )
     .await
 }
@@ -281,6 +282,7 @@ pub async fn run_powershell_command(window: tauri::Window, command: String) -> R
         crate::commands::powershell::EVENT_OUTPUT,
         crate::commands::powershell::EVENT_FINISHED,
         crate::commands::powershell::EVENT_CANCEL,
+        None,
     )
     .await
 }

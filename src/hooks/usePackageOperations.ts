@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage } from "../types/scoop";
 import { OperationNextStep } from "../types/operations";
 import installedPackagesStore from "../stores/installedPackagesStore";
+import { useOperations } from "../stores/operations";
 
 interface UsePackageOperationsReturn {
   operationTitle: () => string | null;
@@ -19,6 +20,8 @@ interface UsePackageOperationsReturn {
   closeOperationModal: (wasSuccess: boolean) => void;
   addCloseListener: (handler: (wasSuccess: boolean) => void) => () => void;
 }
+
+const { addOperation } = useOperations();
 
 const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
 const [operationNextStep, setOperationNextStep] = createSignal<OperationNextStep | null>(null);
@@ -39,7 +42,17 @@ const performInstall = (pkg: ScoopPackage) => {
     setIsScanning(false);
     setPendingInstallPackage(null);
 
-    setOperationTitle(`Installing ${pkg.name}`);
+    const title = `Installing ${pkg.name}`;
+    setOperationTitle(title);
+    
+    addOperation({
+        id: `install-${pkg.name}-${Math.floor(Date.now() / 1000)}`,
+        title,
+        status: 'in-progress',
+        isMinimized: false,
+        output: []
+    });
+
     invoke("install_package", {
         packageName: pkg.name,
         bucket: pkg.source,
@@ -75,7 +88,16 @@ const handleUninstall = (pkg: ScoopPackage) => {
     setIsScanning(false);
     setPendingInstallPackage(null);
 
-    setOperationTitle(`Uninstalling ${pkg.name}`);
+    const title = `Uninstalling ${pkg.name}`;
+    setOperationTitle(title);
+
+    addOperation({
+        id: `uninstall-${pkg.name}-${Math.floor(Date.now() / 1000)}`,
+        title,
+        status: 'in-progress',
+        isMinimized: false,
+        output: []
+    });
 
     invoke("uninstall_package", {
         packageName: pkg.name,
@@ -92,11 +114,23 @@ const handleUpdate = (pkg: ScoopPackage) => {
     setIsScanning(false);
     setPendingInstallPackage(null);
 
-    setOperationTitle(`Updating ${pkg.name}`);
+    const title = `Updating ${pkg.name}`;
+    setOperationTitle(title);
+
+    const operationId = `update-${pkg.name}-${Math.floor(Date.now() / 1000)}`;
+    
+    addOperation({
+      id: operationId,
+      title,
+      status: 'in-progress',
+      isMinimized: false,
+      output: []
+    });
+
     invoke("update_package", { packageName: pkg.name }).catch(err => {
         console.error("Update invocation failed:", err);
     });
-};
+  };
 
 const handleForceUpdate = (pkg: ScoopPackage) => {
     // Ensure clean state before starting new operation
@@ -104,7 +138,17 @@ const handleForceUpdate = (pkg: ScoopPackage) => {
     setIsScanning(false);
     setPendingInstallPackage(null);
 
-    setOperationTitle(`Force Updating ${pkg.name}`);
+    const title = `Force Updating ${pkg.name}`;
+    setOperationTitle(title);
+
+    addOperation({
+        id: `force-update-${pkg.name}-${Math.floor(Date.now() / 1000)}`,
+        title,
+        status: 'in-progress',
+        isMinimized: false,
+        output: []
+    });
+
     invoke("update_package", { packageName: pkg.name, force: true }).catch(err => {
         console.error("Force update invocation failed:", err);
     });
@@ -116,8 +160,21 @@ const handleUpdateAll = () => {
     setIsScanning(false);
     setPendingInstallPackage(null);
 
-    setOperationTitle("Updating all packages");
-    return invoke("update_all_packages").catch(err => {
+    const title = "Updating all packages";
+    setOperationTitle(title);
+
+    const operationId = `update-all-${Math.floor(Date.now() / 1000)}`;
+    
+    addOperation({
+        id: operationId,
+        title,
+        status: 'in-progress',
+        isMinimized: false,
+        output: []
+    });
+
+    // 调用后端命令
+    invoke("update_all_packages").catch(err => {
         console.error("Update all invocation failed:", err);
     });
 };

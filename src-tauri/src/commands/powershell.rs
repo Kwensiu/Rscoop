@@ -14,6 +14,7 @@ pub const EVENT_CANCEL: &str = "cancel-operation";
 pub struct StreamOutput {
     pub line: String,
     pub source: String,
+    pub operation_id: Option<String>,
 }
 
 /// Represents the final result of a command, indicating success or failure and a corresponding message.
@@ -21,6 +22,7 @@ pub struct StreamOutput {
 pub struct CommandResult {
     pub success: bool,
     pub message: String,
+    pub operation_id: Option<String>,
 }
 
 /// Creates a `tokio::process::Command` for running a PowerShell command without a visible window.
@@ -54,11 +56,15 @@ fn spawn_output_stream_handler(
     window: Window,
     output_event: String,
     error_tx: mpsc::Sender<String>,
+    operation_id: Option<String>,
 ) {
     let mut reader = BufReader::new(stream).lines();
 
     tokio::spawn(async move {
         while let Ok(Some(line)) = reader.next_line().await {
+            // Log each line for debugging
+            log::debug!("Output line [{}]: {}", source, line);
+            
             // Enhanced error detection for scoop commands
             let is_error_line = source == "stderr"
                 || line.to_lowercase().contains("error")
@@ -86,11 +92,14 @@ fn spawn_output_stream_handler(
                 StreamOutput {
                     line: line.clone(),
                     source: source.to_string(),
+                    operation_id: operation_id.clone(),
                 },
             ) {
                 log::error!("Failed to emit output event for line '{}': {}", line, e);
             }
         }
+        
+        log::debug!("Output stream handler for {} ended", source);
     });
 }
 
@@ -109,12 +118,14 @@ fn setup_cancellation_handler(window: &Window, cancel_event: &str, cancel_tx: on
             let _ = tx.send(());
         }
     });
+    
+    log::info!("Set up cancellation handler for event: {}", cancel_event);
 }
 
 /// Executes a long-running command and streams its output to the frontend.
 ///
 /// - Emits `output_event` with `StreamOutput` for each line of output.
-/// - Emits `finished_event` with `CommandResult` when the command completes.
+/// - Emits `finished_event` with `CommandResult` when command completes.
 /// - Listens for `cancel_event` to terminate the process.
 pub async fn run_and_stream_command(
     window: Window,
@@ -123,6 +134,7 @@ pub async fn run_and_stream_command(
     output_event: &str,
     finished_event: &str,
     cancel_event: &str,
+    operation_id: Option<String>,
 ) -> Result<(), String> {
     log::info!("Executing streaming command: {}", &command_str);
 
@@ -150,6 +162,7 @@ pub async fn run_and_stream_command(
         window.clone(),
         output_event.to_string(),
         error_tx.clone(),
+        operation_id.clone(),
     );
     spawn_output_stream_handler(
         stderr,
@@ -157,14 +170,15 @@ pub async fn run_and_stream_command(
         window.clone(),
         output_event.to_string(),
         error_tx,
+        operation_id.clone(),
     );
 
     tokio::select! {
         status_res = child.wait() => {
-            handle_command_completion(status_res, &operation_name, &window, finished_event, &mut error_rx).await
+            handle_command_completion(status_res, &operation_name, &window, finished_event, &mut error_rx, operation_id.clone()).await
         },
         _ = cancel_rx => {
-            handle_cancellation(child, &operation_name, &window, finished_event).await
+            handle_cancellation(child, &operation_name, &window, finished_event, operation_id.clone()).await
         }
     }
 }
@@ -176,6 +190,7 @@ async fn handle_command_completion(
     window: &Window,
     finished_event: &str,
     error_rx: &mut mpsc::Receiver<String>,
+    operation_id: Option<String>,
 ) -> Result<(), String> {
     let status = status_res.map_err(|e| {
         format!(
@@ -231,6 +246,7 @@ async fn handle_command_completion(
         CommandResult {
             success: was_successful,
             message: message.clone(),
+            operation_id: operation_id.clone(),
         },
     ) {
         log::error!("Failed to emit finished event: {}", e);
@@ -249,6 +265,7 @@ async fn handle_cancellation(
     operation_name: &str,
     window: &Window,
     finished_event: &str,
+    operation_id: Option<String>,
 ) -> Result<(), String> {
     log::warn!("Cancelling operation: {}", operation_name);
 
@@ -263,6 +280,7 @@ async fn handle_cancellation(
         CommandResult {
             success: false,
             message: message.clone(),
+            operation_id: operation_id.clone(),
         },
     ) {
         log::error!("Failed to emit cancellation event: {}", e);

@@ -20,7 +20,9 @@ pub async fn update_package(
         ScoopOp::Update
     };
     
-    scoop::execute_scoop(window, op, Some(&package_name), None).await?;
+    let operation_id = Some(format!("update-{}-{}", package_name, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()));
+    
+    scoop::execute_scoop(window, op, Some(&package_name), None, operation_id).await?;
 
     // Trigger auto cleanup after update
     trigger_auto_cleanup(app, state).await;
@@ -37,8 +39,10 @@ pub async fn update_all_packages(
 ) -> Result<(), String> {
     log::info!("Updating all packages (manual)");
     
+    let operation_id = Some(format!("update-all-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()));
+    
     // Execute the update through window streaming
-    let result = scoop::execute_scoop(window.clone(), ScoopOp::UpdateAll, None, None).await;
+    let result = scoop::execute_scoop(window.clone(), ScoopOp::UpdateAll, None, None, operation_id).await;
 
     // Return the original result (success or error)
     result?;

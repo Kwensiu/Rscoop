@@ -120,7 +120,20 @@
     "unknown": "未知",
     "view_on_github": "在 GitHub 上查看"
   },
+  "warnings": {
+    "multi_instance": {
+      "title": "多实例操作警告",
+      "message": "您同时运行了多个操作，这可能会影响性能和稳定性。建议等待当前操作完成后再开始新操作。",
+      "understand": "我已了解",
+      "dont_show_again": "不再提示"
+    }
+  },
   "buttons": {
+    "show_more": "显示更多",
+    "show_less": "收起",
+    "collapse": "收起",
+    "hide": "隐藏",
+    "close_dialog": "关闭",
     "cancel": "取消",
     "close": "关闭",
     "confirm": "确认",

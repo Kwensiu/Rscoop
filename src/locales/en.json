@@ -120,8 +120,17 @@
     "unknown": "Unknown",
     "view_on_github": "View on GitHub"
   },
+  "warnings": {
+    "multi_instance": {
+      "title": "Multi-Instance Operation Warning",
+      "message": "You are running multiple operations simultaneously, which may affect performance and stability. It is recommended to wait for the current operation to complete before starting a new one.",
+      "understand": "I Understand",
+      "dont_show_again": "Don't Show Again"
+    }
+  },
   "buttons": {
     "cancel": "Cancel",
+    "close_dialog": "Close",
     "close": "Close",
     "confirm": "Confirm",
     "install": "Install",

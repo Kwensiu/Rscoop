@@ -1,18 +1,21 @@
-import { createSignal, Show, onMount, createMemo, createEffect, onCleanup } from "solid-js";
+import { createSignal, Show, onMount, createMemo, createEffect, onCleanup, For } from "solid-js";
 import "./App.css";
 import "./i18n";
+import "./styles/minimized-indicator.css";
 import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
 import BucketPage from "./pages/BucketPage.tsx";
 import InstalledPage from "./pages/InstalledPage.tsx";
-import { View } from "./types/scoop.ts";
+import { View } from "./types/scoop";
+import type { OperationState } from "./types/operations";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
-import MinimizedIndicator from "./components/MinimizedIndicator.tsx";
+import MinimizedIndicatorManager from "./components/MinimizedIndicatorManager.tsx";
+import MultiInstanceWarning from "./components/MultiInstanceWarning.tsx";
 import AnimatedButton from "./components/AnimatedButton";
 import OperationModal from "./components/OperationModal.tsx";
-import { listen, emit } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
 import { createStoredSignal } from "./hooks/createStoredSignal";
 import { check, Update } from "@tauri-apps/plugin-updater";
@@ -24,6 +27,7 @@ import settingsStore from "./stores/settings";
 import { checkCwdMismatch } from "./utils/installCheck";
 import { BucketInfo, updateBucketsCache } from "./hooks/useBuckets";
 import { usePackageOperations } from "./hooks/usePackageOperations";
+import { useOperations } from "./stores/operations";
 import { t } from "./i18n";
 
 function App() {
@@ -34,6 +38,7 @@ function App() {
     );
 
     const packageOperations = usePackageOperations();
+    const { operations, removeOperation } = useOperations();
 
     // Always start with false on app launch to ensure loading screen shows
     const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
@@ -60,44 +65,11 @@ function App() {
     const [autoUpdateTitle, setAutoUpdateTitle] = createSignal<string | null>(null);
 
 
-    // Minimized state
-    const [minimizedState, setMinimizedState] = createSignal({
-        isMinimized: false,
-        showIndicator: false,
-        title: "",
-        result: "in-progress" as 'success' | 'error' | 'in-progress'
-    });
-
     const { settings } = settingsStore;
 
     createEffect(() => {
         document.documentElement.setAttribute('data-theme', settings.theme);
     });
-
-    // Listen for minimize events from OperationModal (formerly FloatingOperationModal)
-    createEffect(() => {
-        const handleMinimizeEvent = (event: any) => {
-            setMinimizedState(event.payload);
-        };
-        let unlisten: (() => void) | undefined;
-        listen('panel-minimize-state', handleMinimizeEvent).then((unlistenFn) => {
-            unlisten = unlistenFn;
-        });
-        onCleanup(() => {
-            if (unlisten) unlisten();
-        });
-    });
-
-    const handleMinimizedIndicatorClick = () => {
-        // Send event to restore the panel
-        emit('restore-panel');
-        setMinimizedState({
-            isMinimized: false,
-            showIndicator: false,
-            title: "",
-            result: "in-progress"
-        });
-    };
 
     // Debug: track state changes (only in development)
     if (process.env.NODE_ENV === 'development') {
@@ -516,16 +488,26 @@ function App() {
                     />
                 </Show>
                 <DebugModal />
-                <MinimizedIndicator
-                    title={minimizedState().title}
-                    visible={minimizedState().showIndicator}
-                    onClick={handleMinimizedIndicatorClick}
-                />
+                <MinimizedIndicatorManager />
+                <MultiInstanceWarning />
             </Show>
-            <OperationModal
-                title={autoUpdateTitle()}
-                onClose={handleCloseAutoUpdateModal}
-            />
+            {/* Render all active operation modals */}
+            <For each={Object.values(operations())}>
+                {(operation: OperationState) => (
+                    <Show when={!operation.isMinimized}>
+                        <OperationModal
+                            operationId={operation.id}
+                            title={operation.title}
+                            onClose={(operationId, wasSuccess) => {
+                                removeOperation(operationId);
+                                if (operation.title === autoUpdateTitle()) {
+                                    handleCloseAutoUpdateModal(wasSuccess);
+                                }
+                            }}
+                        />
+                    </Show>
+                )}
+            </For>
         </>
     );
 }

@@ -459,3 +459,27 @@ html {
 [data-theme="light"] .hljs-link {
   text-decoration: underline;
 }
+
+/* Operation Modal 响应式间距 */
+:root {
+  --modal-padding: 3rem; /* 默认 24px - 增加最小边距 */
+}
+
+@media (min-width: 640px) {
+  :root {
+    --modal-padding: 2rem; /* 32px */
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --modal-padding: 2.5rem; /* 40px */
+  }
+}
+
+/* 超窄屏幕的最小边距保护 */
+@media (max-width: 400px) {
+  :root {
+    --modal-padding: 1rem; /* 16px - 超窄屏幕的最小边距 */
+  }
+}

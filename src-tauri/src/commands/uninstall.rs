@@ -13,8 +13,8 @@ use tauri::{AppHandle, State, Window};
 ///
 /// # Arguments
 /// * `window` - The Tauri window to emit events to.
-/// * `package_name` - The name of the package to uninstall.
-/// * `bucket` - The bucket the package belongs to (for logging purposes).
+/// * `package_name` - The name of package to uninstall.
+/// * `bucket` - The bucket package belongs to (for logging purposes).
 #[tauri::command]
 pub async fn uninstall_package(
     window: Window,
@@ -26,9 +26,8 @@ pub async fn uninstall_package(
     execute_package_operation(
         window.clone(),
         ScoopOp::Uninstall,
-        "Uninstalling",
         &package_name,
-        &bucket,
+        Some(&bucket),
     )
     .await?;
     invalidate_manifest_cache().await;
@@ -60,9 +59,8 @@ pub async fn clear_package_cache(
     execute_package_operation(
         window,
         ScoopOp::ClearCache,
-        "Clearing cache for",
         &package_name,
-        &bucket,
+        Some(&bucket),
     )
     .await?;
 
@@ -79,21 +77,32 @@ pub async fn clear_package_cache(
 async fn execute_package_operation(
     window: Window,
     op: ScoopOp,
-    op_name: &str,
-    package_name: &str,
-    bucket: &str,
+    package: &str,
+    bucket: Option<&str>,
 ) -> Result<(), String> {
-    // The bucket is not used by `scoop uninstall` or `scoop cache rm`, but we parse it
-    // for logging consistency and to align with the `install` command's signature.
-    let bucket_opt = (!bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")).then(|| bucket);
-
     log::info!(
-        "{} package '{}' from bucket '{}'",
-        op_name,
-        package_name,
-        bucket_opt.unwrap_or("default")
+        "Executing {} for package '{}' from bucket '{}'",
+        match op {
+            ScoopOp::Install => "installing",
+            ScoopOp::Uninstall => "uninstalling",
+            ScoopOp::Update => "updating",
+            ScoopOp::UpdateForce => "force updating",
+            ScoopOp::ClearCache => "clearing cache for",
+            ScoopOp::UpdateAll => "updating all",
+        },
+        package,
+        bucket.unwrap_or("default")
     );
 
+    let operation_id = Some(format!("{}-{}-{}", match op {
+        ScoopOp::Install => "install",
+        ScoopOp::Uninstall => "uninstall",
+        ScoopOp::Update => "update",
+        ScoopOp::UpdateForce => "force-update",
+        ScoopOp::ClearCache => "clear-cache",
+        ScoopOp::UpdateAll => "update-all",
+    }, package, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()));
+
     // Pass the bucket option along; `execute_scoop` will handle whether it's used.
-    scoop::execute_scoop(window, op, Some(package_name), bucket_opt).await
+    scoop::execute_scoop(window, op, Some(package), bucket, operation_id).await
 }

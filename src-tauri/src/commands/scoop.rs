@@ -58,6 +58,7 @@ pub async fn execute_scoop(
     op: ScoopOp,
     package: Option<&str>,
     bucket: Option<&str>,
+    operation_id: Option<String>,
 ) -> Result<(), String> {
     let cmd = build_scoop_cmd(op, package, bucket)?;
 
@@ -79,6 +80,7 @@ pub async fn execute_scoop(
         EVENT_OUTPUT,
         EVENT_FINISHED,
         EVENT_CANCEL,
+        operation_id,
     )
     .await
 }

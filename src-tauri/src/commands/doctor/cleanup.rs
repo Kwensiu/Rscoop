@@ -24,6 +24,7 @@ async fn run_cleanup_command(
         powershell::EVENT_OUTPUT,
         powershell::EVENT_FINISHED,
         powershell::EVENT_CANCEL,
+        None,
     )
     .await;
     
