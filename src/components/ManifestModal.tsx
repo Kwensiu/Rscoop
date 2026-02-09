@@ -30,7 +30,7 @@ function ManifestModal(props: ManifestModalProps) {
     if (props.manifestContent && codeRef) {
       codeRef.textContent = props.manifestContent;
       // Remove existing hljs classes to allow re-highlighting
-      codeRef.className = 'language-json font-mono text-sm leading-relaxed !bg-transparent';
+      codeRef.className = 'language-json font-mono text-sm leading-relaxed bg-transparent!';
       hljs.highlightElement(codeRef);
     }
   });
@@ -56,6 +56,7 @@ function ManifestModal(props: ManifestModalProps) {
       }
       size="large"
       class="bg-base-100"
+      zIndex="z-52"
       footer={
         <button class="btn-close-outline" onClick={props.onClose}>Close</button>
       }
@@ -91,7 +92,7 @@ function ManifestModal(props: ManifestModalProps) {
             </button>
           </div>
           <div class="max-h-[65vh] overflow-y-auto custom-scrollbar">
-            <pre class="p-4 m-0"><code ref={codeRef} class="language-json font-mono text-sm leading-relaxed !bg-transparent"></code></pre>
+            <pre class="p-4 m-0"><code ref={codeRef} class="language-json font-mono text-sm leading-relaxed bg-transparent!"></code></pre>
           </div>
         </div>
       </Show>

@@ -41,7 +41,7 @@ const MultiInstanceWarning = () => {
       <div class="fixed bottom-4 right-4 z-50 max-w-sm">
         <div class="alert alert-warning shadow-lg border-warning bg-warning text-warning-content">
           <div class="flex items-start gap-3">
-            <TriangleAlert class="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <TriangleAlert class="w-5 h-5 shrink-0 mt-0.5" />
             <div class="flex-1 min-w-0">
               <div class="font-bold mb-1">
                 {t('warnings.multi_instance.title')}

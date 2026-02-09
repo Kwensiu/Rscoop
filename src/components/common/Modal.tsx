@@ -12,6 +12,7 @@ interface ModalProps {
     headerAction?: JSX.Element;
     class?: string;
     preventBackdropClose?: boolean;
+    zIndex?: string;
 
     editButton?: boolean; // Add: Edit botton
     initialContent?: string; // Test
@@ -61,7 +62,7 @@ export default function Modal(props: ModalProps) {
     return (
         <Portal>
             <Show when={props.isOpen}>
-                <div class="modal modal-open backdrop-blur-sm z-50" role="dialog">
+                <div class={`modal modal-open backdrop-blur-sm ${props.zIndex || 'z-50'}`} role="dialog">
                     <div class={`modal-box bg-base-300 shadow-2xl border border-base-300 p-0 overflow-hidden flex flex-col max-h-[90vh] ${getSizeClass()} ${props.class ?? ""}`}>
                         {/* Header */}
                         <div class="flex justify-between items-center p-4 border-b border-base-200 bg-base-400">
