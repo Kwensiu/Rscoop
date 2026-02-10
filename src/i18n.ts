@@ -223,6 +223,23 @@ export interface Dict {
       close_and_disable: string;
       keep_in_tray: string;
     };
+    tray_apps: {
+      title: string;
+      enable_tray_apps: string;
+      enable_tray_apps_description: string;
+      manage_context_menu: string;
+      manage_tray_apps: string;
+      manage_tray_apps_description: string;
+      configure: string;
+      description: string;
+      help_text: string;
+      no_apps_found: string;
+      selected_count: string;
+      selected_apps: string;
+      available_apps: string;
+      no_selected_apps: string;
+      no_available_apps: string;
+    };
   };
   [key: string]: string | ((...args: any[]) => string) | any;
 }
@@ -243,18 +260,54 @@ const getInitialLocale = (): Locale => {
 const { locale, setLocale, dict, t } = createRoot(() => {
   const [locale, setLocale] = createSignal<Locale>(getInitialLocale());
 
-  // Save the current locale to localStorage when it changes
-  createEffect(() => {
+  // Save current locale to localStorage when it changes
+  createEffect(async () => {
     const currentLocale = locale();
-    localStorage.setItem('rscoop-language', currentLocale);
+    const previousLocale = localStorage.getItem('rscoop-language') as Locale || 'en';
+    
+    // Only sync to backend if locale actually changed
+    if (currentLocale !== previousLocale) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('set_language_setting', { language: currentLocale });
+        // Only save to localStorage if backend sync succeeds
+        localStorage.setItem('rscoop-language', currentLocale);
+      } catch (error) {
+        console.warn('Failed to sync language to backend:', error);
+        // Revert to previous locale to maintain consistency
+        if (previousLocale !== currentLocale) {
+          setLocale(previousLocale);
+        }
+      }
+    }
   });
 
   // Create a resource to load the dictionary for the current locale
   const [dict] = createResource(locale, async (lang) => {
-    const dictModule = await import(`./locales/${lang}.json`);
-    return i18n.flatten(dictModule.default) as Dict;
+    try {
+      // Directly import locale files instead of using backend API
+      const localeModule = lang === 'zh'
+        ? await import('./locales/zh.json')
+        : await import('./locales/en.json');
+
+      return i18n.flatten(localeModule.default as Record<string, any>) as Dict;
+    } catch (error) {
+      console.warn('Failed to load locale file, using fallback:', error);
+      // Return minimal fallback dictionary to prevent white screen
+      return i18n.flatten({
+        'app.title': 'Rscoop',
+        'messages.loading': 'Loading...',
+        'status.error': 'Error',
+        'buttons.close': 'Close'
+      } as Record<string, any>) as Dict;
+    }
   }, {
-    initialValue: {} as Dict,
+    initialValue: i18n.flatten({
+      'app.title': 'Rscoop',
+      'messages.loading': 'Loading...',
+      'status.error': 'Error',
+      'buttons.close': 'Close'
+    } as Record<string, any>) as Dict,
   });
 
   const t = i18n.translator(dict, i18n.resolveTemplate);

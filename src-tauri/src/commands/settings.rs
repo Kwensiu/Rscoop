@@ -194,12 +194,28 @@ fn get_nested_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
 
 /// Sets a generic configuration value in the store.
 #[tauri::command]
-pub fn set_config_value<R: Runtime>(
-    app: AppHandle<R>,
+pub fn set_config_value(
+    app: AppHandle<tauri::Wry>,
     key: String,
     value: Value,
 ) -> Result<(), String> {
-    with_store_mut(app, move |store| store.set(key, value))
+    let key_clone = key.clone();
+    with_store_mut(app.clone(), move |store| store.set(key_clone, value))?;
+
+    // Trigger tray refresh for relevant settings
+    match key.as_str() {
+        "settings.language" | "tray.appsList" | "settings.window.trayAppsEnabled" => {
+            let app_handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = crate::tray::refresh_tray_menu(&app_handle).await {
+                    log::error!("Failed to refresh tray menu after setting change ({}): {}", key, e);
+                }
+            });
+        }
+        _ => {}
+    }
+
+    Ok(())
 }
 
 /// Gets the Scoop configuration as a JSON object

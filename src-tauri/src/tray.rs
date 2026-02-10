@@ -1,6 +1,7 @@
 use crate::commands::settings;
 use crate::state::AppState;
 use crate::utils::{get_scoop_app_shortcuts_with_path, launch_scoop_app, ScoopAppShortcut};
+use crate::i18n;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{
@@ -14,6 +15,10 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>> =
         Arc::new(Mutex::new(HashMap::new()));
     app.manage(shortcuts_map.clone());
+
+    // Create a debouncer for tray refreshes to prevent race conditions
+    let refresh_in_progress: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    app.manage(refresh_in_progress.clone());
 
     // Build the dynamic menu
     let menu = build_tray_menu(app, shortcuts_map.clone())?;
@@ -32,7 +37,9 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
             {
                 let app = tray.app_handle();
                 if let Some(window) = app.get_webview_window("main") {
+                    // Ensure window is shown and restored from minimized state
                     let _ = window.show();
+                    let _ = window.unminimize();
                     let _ = window.set_focus();
                 }
             }
@@ -90,20 +97,48 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 fn build_tray_menu(
-    app: &tauri::AppHandle,
+    app: &tauri::AppHandle<tauri::Wry>,
     shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>>,
 ) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    // Get the current language setting
+    let language = settings::get_config_value(
+        app.clone(),
+        "settings.language".to_string(),
+    )
+    .ok()
+    .flatten()
+    .and_then(|v| v.as_str().map(|s| s.to_string()))
+    .unwrap_or_else(|| "en".to_string());
+
+    // Get localized menu strings
+    let menu_strings = i18n::load_tray_locale_strings(app, &language)?;
+
+    // Extract strings with defaults
+    let show_text = menu_strings.get("show")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Show Rscoop");
+    let hide_text = menu_strings.get("hide")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Hide Rscoop");
+    let refresh_apps_text = menu_strings.get("refresh_apps")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Refresh Apps");
+    let scoop_apps_text = menu_strings.get("scoop_apps")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Scoop Apps");
+    let quit_text = menu_strings.get("quit")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Quit");
+
     // Basic menu items
-    let show = tauri::menu::MenuItemBuilder::with_id("show", "Show Rscoop").build(app)?;
-    let hide = tauri::menu::MenuItemBuilder::with_id("hide", "Hide Rscoop").build(app)?;
+    let show = tauri::menu::MenuItemBuilder::with_id("show", show_text).build(app)?;
+    let hide = tauri::menu::MenuItemBuilder::with_id("hide", hide_text).build(app)?;
     let refresh_apps =
-        tauri::menu::MenuItemBuilder::with_id("refresh_apps", "Refresh Apps").build(app)?;
+        tauri::menu::MenuItemBuilder::with_id("refresh_apps", refresh_apps_text).build(app)?;
 
     let mut menu_items: Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>> = Vec::new();
     menu_items.push(Box::new(show));
     menu_items.push(Box::new(hide));
-
-    // Get Scoop apps shortcuts using the app state
     let shortcuts_result = if let Some(app_state) = app.try_state::<AppState>() {
         let scoop_path = app_state.scoop_path();
         get_scoop_app_shortcuts_with_path(scoop_path.as_path())
@@ -114,28 +149,75 @@ fn build_tray_menu(
 
     if let Ok(shortcuts) = shortcuts_result {
         if !shortcuts.is_empty() {
-            // Add separator before apps
-            let separator = tauri::menu::PredefinedMenuItem::separator(app)?;
-            menu_items.push(Box::new(separator));
+            // Check if tray apps functionality is enabled
+            let tray_apps_enabled = crate::commands::settings::get_config_value(
+                app.clone(),
+                "settings.window.trayAppsEnabled".to_string(),
+            )
+            .ok()
+            .flatten()
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true); // Default to true for backward compatibility
 
-            // Add "Scoop Apps" label
-            let apps_label = tauri::menu::MenuItemBuilder::with_id("apps_label", "Scoop Apps")
-                .enabled(false)
-                .build(app)?;
-            menu_items.push(Box::new(apps_label));
+            if tray_apps_enabled {
+                // Get configured tray apps list
+                let configured_apps = crate::commands::settings::get_config_value(
+                    app.clone(),
+                    crate::config_keys::TRAY_APPS_LIST.to_string(),
+                )
+                .ok()
+                .flatten()
+                .and_then(|v| v.as_array().cloned())
+                .unwrap_or_default();
 
-            // Store shortcuts in the map and create menu items
-            if let Ok(mut map) = shortcuts_map.lock() {
-                map.clear();
+                // Convert configured apps to a HashSet for fast lookup
+                let configured_app_names: std::collections::HashSet<String> = configured_apps
+                    .iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
 
-                for shortcut in shortcuts {
-                    let menu_id = format!("app_{}", shortcut.name);
-                    map.insert(menu_id.clone(), shortcut.clone());
+                // Filter shortcuts based on configuration
+                // If no apps configured, show none (user can add them in settings)
+                let filtered_shortcuts: Vec<_> = if configured_app_names.is_empty() {
+                    Vec::new()  // Show no apps by default
+                } else {
+                    shortcuts
+                        .into_iter()
+                        .filter(|shortcut| configured_app_names.contains(&shortcut.name))
+                        .collect()
+                };
 
-                    let menu_item =
-                        tauri::menu::MenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
-                            .build(app)?;
-                    menu_items.push(Box::new(menu_item));
+                if !filtered_shortcuts.is_empty() {
+                    // Add separator before apps
+                    let separator = tauri::menu::PredefinedMenuItem::separator(app)?;
+                    menu_items.push(Box::new(separator));
+
+                    // Add "Scoop Apps" label
+                    let apps_label = tauri::menu::MenuItemBuilder::with_id("apps_label", scoop_apps_text)
+                        .enabled(false)
+                        .build(app)?;
+                    menu_items.push(Box::new(apps_label));
+
+                    // Build new shortcuts map first, then replace atomically
+                    let mut new_shortcuts_map = HashMap::new();
+                    for shortcut in filtered_shortcuts {
+                        let menu_id = format!("app_{}", shortcut.name);
+                        new_shortcuts_map.insert(menu_id.clone(), shortcut.clone());
+
+                        let menu_item =
+                            tauri::menu::MenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
+                                .build(app)?;
+                        menu_items.push(Box::new(menu_item));
+                    }
+
+                    // Replace the old map atomically with error handling
+                    if let Ok(mut map) = shortcuts_map.lock() {
+                        *map = new_shortcuts_map;
+                    } else {
+                        log::error!("Failed to acquire shortcuts_map lock for atomic replacement - continuing with empty map");
+                        // Continue with the menu build even if we can't update the shortcuts map
+                        // This maintains backward compatibility with the original behavior
+                    }
                 }
             }
         }
@@ -150,7 +232,7 @@ fn build_tray_menu(
 
     // Add quit option
     let separator2 = tauri::menu::PredefinedMenuItem::separator(app)?;
-    let quit = tauri::menu::MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+    let quit = tauri::menu::MenuItemBuilder::with_id("quit", quit_text).build(app)?;
     menu_items.push(Box::new(separator2));
     menu_items.push(Box::new(quit));
 
@@ -164,13 +246,57 @@ fn build_tray_menu(
 }
 
 /// Refresh the tray menu with updated Scoop apps
-pub async fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), String> {
+pub async fn refresh_tray_menu(app: &tauri::AppHandle<tauri::Wry>) -> Result<(), String> {
     log::info!("Refreshing tray menu...");
 
+    let refresh_in_progress = app.state::<Arc<Mutex<bool>>>();
+
+    // Check if a refresh is already in progress
+    {
+        let mut in_progress = refresh_in_progress.inner().lock().map_err(|e| format!("Failed to lock refresh flag: {}", e))?;
+        if *in_progress {
+            log::info!("Tray refresh already in progress, skipping...");
+            return Ok(());
+        }
+        *in_progress = true;
+    }
+
+    // Get shortcuts map
     let shortcuts_map = app.state::<Arc<Mutex<HashMap<String, ScoopAppShortcut>>>>();
 
+    // Clone the app handle for the async task
+    let app_clone = app.clone();
+    let shortcuts_map_clone = shortcuts_map.inner().clone();
+    let refresh_flag_clone = refresh_in_progress.inner().clone();
+
+    // Start the refresh task with proper error handling and flag reset
+    tauri::async_runtime::spawn(async move {
+        let result = perform_tray_refresh(&app_clone, shortcuts_map_clone).await;
+
+        // ALWAYS reset the flag, regardless of success or failure
+        if let Ok(mut flag) = refresh_flag_clone.lock() {
+            *flag = false;
+        } else {
+            log::error!("Failed to reset refresh_in_progress flag after tray refresh attempt");
+        }
+
+        // Log the result
+        match result {
+            Ok(_) => log::info!("Tray menu refreshed successfully"),
+            Err(e) => log::error!("Failed to perform tray refresh: {}", e),
+        }
+    });
+
+    Ok(())
+}
+
+/// Internal function to perform the actual tray refresh
+async fn perform_tray_refresh(
+    app: &tauri::AppHandle<tauri::Wry>,
+    shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>>,
+) -> Result<(), String> {
     // Rebuild the menu
-    let new_menu = build_tray_menu(app, shortcuts_map.inner().clone())
+    let new_menu = build_tray_menu(app, shortcuts_map)
         .map_err(|e| format!("Failed to build new menu: {}", e))?;
 
     // Update the tray icon menu
@@ -185,57 +311,45 @@ pub async fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Gets tray notification strings for the current locale
-#[tauri::command]
-pub fn get_tray_notification_strings() -> Result<serde_json::Value, String> {
-    // For now, we'll return hardcoded strings. In a full implementation,
-    // we'd need to access the frontend locale from the backend.
-    // This is a limitation of the current architecture.
-    Ok(serde_json::json!({
-        "en": {
-            "title": "Rscoop - Minimized to Tray",
-            "message": "Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?",
-            "close_button": "Close and Disable Tray",
-            "keep_button": "Keep in Tray"
-        },
-        "zh": {
-            "title": "Rscoop - 最小化到托盘",
-            "message": "Rscoop 已最小化到系统托盘，并将在后台继续运行。\n\n您可以：\n• 点击托盘图标恢复窗口\n• 右键单击托盘图标访问上下文菜单\n• 在设置 > 窗口行为中更改此行为\n\n您想要怎么做？",
-            "close_button": "关闭并禁用托盘",
-            "keep_button": "保持在托盘"
-        }
-    }))
-}
-
 /// Blocking version for use in threads
 pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
     log::info!("Displaying blocking native dialog for tray notification");
 
-    // Try to get the current language setting, default to English
+    // Get notification strings from locale files
     let language = settings::get_config_value(
         app.clone(),
-        "language".to_string(),
+        "settings.language".to_string(),
     )
     .ok()
     .flatten()
     .and_then(|v| v.as_str().map(|s| s.to_string()))
     .unwrap_or_else(|| "en".to_string());
 
-    // Get the appropriate strings based on language
-    let (title, message, close_button, keep_button) = match language.as_str() {
-        "zh" => (
-            "Rscoop - 最小化到托盘",
-            "Rscoop 已最小化到系统托盘，并将在后台继续运行。\n\n您可以：\n• 点击托盘图标恢复窗口\n• 右键单击托盘图标访问上下文菜单\n• 在设置 > 窗口行为中更改此行为\n\n您想要怎么做？",
-            "关闭并禁用托盘",
-            "保持在托盘"
-        ),
-        _ => (
-            "Rscoop - Minimized to Tray",
-            "Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?",
-            "Close and Disable Tray",
-            "Keep in Tray"
-        )
+    let strings = match i18n::load_tray_locale_strings(app, &language) {
+        Ok(s) => s,
+        Err(e) => {
+            log::error!("Failed to get notification strings: {}", e);
+            return;
+        }
     };
+
+    // Extract strings with fallbacks
+    let title = strings
+        .get("notification_title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Rscoop - Minimized to Tray");
+    let message = strings
+        .get("notification_message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?");
+    let close_button = strings
+        .get("close_and_disable")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Close and Disable Tray");
+    let keep_button = strings
+        .get("keep_in_tray")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Keep in Tray");
 
     // Show a nice native dialog with information about tray behavior
     let result = app
@@ -261,6 +375,49 @@ pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
 }
 
 #[tauri::command]
-pub async fn refresh_tray_apps_menu(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn refresh_tray_apps_menu(app: tauri::AppHandle<tauri::Wry>) -> Result<(), String> {
     refresh_tray_menu(&app).await
+}
+
+#[tauri::command]
+pub fn get_current_language(app: tauri::AppHandle<tauri::Wry>) -> Result<String, String> {
+    let language = settings::get_config_value(
+        app.clone(),
+        "settings.language".to_string(),
+    )
+    .ok()
+    .flatten()
+    .and_then(|v| v.as_str().map(|s| s.to_string()))
+    .unwrap_or_else(|| "en".to_string());
+    
+    Ok(language)
+}
+
+#[tauri::command]
+pub fn set_language_setting(app: tauri::AppHandle<tauri::Wry>, language: String) -> Result<(), String> {
+    settings::set_config_value(app, "settings.language".to_string(), serde_json::json!(language))
+}
+
+#[tauri::command]
+pub fn get_scoop_app_shortcuts() -> Result<Vec<serde_json::Value>, String> {
+    match crate::utils::get_scoop_app_shortcuts() {
+        Ok(shortcuts) => {
+            let result: Vec<serde_json::Value> = shortcuts
+                .into_iter()
+                .map(|shortcut| {
+                    serde_json::json!({
+                        "name": shortcut.name,
+                        "display_name": shortcut.display_name
+                    })
+                })
+                .collect();
+            Ok(result)
+        }
+        Err(e) => Err(format!("Failed to get Scoop app shortcuts: {}", e)),
+    }
+}
+
+#[tauri::command]
+pub fn get_locale_strings(app: tauri::AppHandle<tauri::Wry>, lang: String) -> Result<serde_json::Value, String> {
+    i18n::load_full_locale_strings(&app, &lang)
 }

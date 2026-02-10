@@ -6,6 +6,7 @@ mod scheduler;
 mod state;
 mod tray;
 pub mod utils;
+mod i18n;
 
 use crate::commands::settings::detect_scoop_path;
 use std::path::PathBuf;
@@ -16,6 +17,7 @@ use tauri_plugin_log::{Target, TargetKind};
 mod config_keys {
     pub const WINDOW_CLOSE_TO_TRAY: &str = "window.closeToTray";
     pub const WINDOW_FIRST_TRAY_NOTIFICATION_SHOWN: &str = "window.firstTrayNotificationShown";
+    pub const TRAY_APPS_LIST: &str = "tray.appsList";
 }
 
 // Application constants
@@ -247,7 +249,10 @@ pub fn run() {
             commands::startup::set_silent_startup_enabled,
             cold_start::is_cold_start_ready,
             tray::refresh_tray_apps_menu,
-            tray::get_tray_notification_strings,
+            tray::get_current_language,
+            tray::set_language_setting,
+            tray::get_scoop_app_shortcuts,
+            tray::get_locale_strings,
             commands::update_config::reload_update_config,
             commands::update_config::get_update_channel,
             commands::update_config::get_update_info_for_channel,

@@ -16,6 +16,7 @@ interface Settings {
     closeToTray: boolean;
     firstTrayNotificationShown: boolean;
     silentStartup: boolean;
+    trayAppsEnabled: boolean;
   };
   theme: 'dark' | 'light';
   debug: {
@@ -51,6 +52,7 @@ const defaultSettings: Settings = {
     closeToTray: false,
     firstTrayNotificationShown: true,
     silentStartup: false,
+    trayAppsEnabled: true,
   },
   theme: 'dark',
   debug: {
@@ -140,6 +142,7 @@ function createSettingsStore() {
               ...defaultSettings.window,
               ...stored.window,
               silentStartup: stored.window?.silentStartup ?? defaultSettings.window.silentStartup,
+              trayAppsEnabled: stored.window?.trayAppsEnabled ?? defaultSettings.window.trayAppsEnabled,
             },
             theme: stored.theme || defaultSettings.theme,
             debug: {

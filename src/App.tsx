@@ -71,7 +71,7 @@ function App() {
         document.documentElement.setAttribute('data-theme', settings.theme);
     });
 
-    // Debug: track state changes (only in development)
+        // Debug: track state changes (only in development)
     if (process.env.NODE_ENV === 'development') {
         createEffect(() => {
             console.log("App State Debug:", {
