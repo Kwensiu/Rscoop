@@ -85,8 +85,7 @@ function ScoopInfo(props: ScoopInfoProps) {
             await invoke("update_scoop_config", { config });
 
             // Refresh the config after saving
-            const newConfig = await invoke<ScoopConfig | null>("get_scoop_config");
-            setScoopConfig(newConfig);
+            await fetchScoopInfo(true); // Silent refresh
 
             closeEditModal();
         } catch (err) {
