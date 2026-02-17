@@ -11,6 +11,7 @@ import Modal from "./common/Modal";
 import { openUrl, openPath } from '@tauri-apps/plugin-opener';
 import settingsStore from "../stores/settings";
 import { t } from "../i18n";
+import { formatBucketDate } from "../utils/date";
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
@@ -201,15 +202,6 @@ function BucketInfoModal(props: BucketInfoModalProps) {
     return details.filter(([_, value]) => value !== undefined && value !== null);
   });
 
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return t("bucket_info.unknown");
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return dateString; // Return as-is if parsing fails
-    }
-  };
-
   const headerAction = (
     <div class="flex items-center gap-2">
       <Show when={props.bucket?.is_git_repo}>
@@ -394,7 +386,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                       <Show when={props.searchBucket!.last_updated !== "Unknown"}>
                         <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                           <div class="font-semibold text-base-content/70 col-span-1">{t("bucket_info.last_updated")}:</div>
-                          <div class="col-span-2">{formatDate(props.searchBucket!.last_updated)}</div>
+                          <div class="col-span-2">{formatBucketDate(props.searchBucket!.last_updated)}</div>
                         </div>
                       </Show>
                     </Show>
@@ -410,7 +402,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                         <div class="col-span-2">
                           <Switch fallback={<DetailValue value={value} />}>
                             <Match when={key === 'Last Updated'}>
-                              {formatDate(value as string)}
+                              {formatBucketDate(value as string)}
                             </Match>
                             <Match when={key === 'Path'}>
                               <div

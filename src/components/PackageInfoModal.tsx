@@ -7,7 +7,6 @@ import json from 'highlight.js/lib/languages/json';
 import { Download, Ellipsis, FileText, Trash2, ExternalLink, RefreshCw, X } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
-import Modal from "./common/Modal";
 import { openPath } from '@tauri-apps/plugin-opener';
 import settingsStore from "../stores/settings";
 import { t } from "../i18n";

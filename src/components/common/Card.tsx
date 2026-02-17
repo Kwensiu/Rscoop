@@ -41,7 +41,7 @@ export default function Card(props: CardProps) {
                 </div>
 
                 <Show when={props.description}>
-                    <div id={descriptionId} class=" mb-4">
+                    <div id={descriptionId}>
                         {props.description}
                     </div>
                 </Show>

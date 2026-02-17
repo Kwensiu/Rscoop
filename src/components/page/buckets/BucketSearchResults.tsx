@@ -6,6 +6,7 @@ import { ExternalLink, Star, Package, GitFork, Shield, Clock, Download, Trash2, 
 import { openUrl } from '@tauri-apps/plugin-opener';
 import Card from "../../common/Card";
 import { t } from "../../../i18n";
+import { formatBucketDate } from "../../../utils/date";
 
 interface BucketSearchResultsProps {
   buckets: SearchableBucket[];
@@ -25,15 +26,6 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
       return (num / 1000).toFixed(1) + 'k';
     }
     return num.toString();
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (dateStr === "Unknown") return dateStr;
-    try {
-      return new Date(dateStr).toLocaleDateString();
-    } catch {
-      return dateStr;
-    }
   };
 
   // Check if a bucket is installed locally
@@ -139,7 +131,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                 title={
                   <div class="flex items-center justify-between w-full gap-2">
                     <span class="truncate font-semibold">{bucket.name}</span>
-                    <div class="flex items-center gap-1 flex-shrink-0">
+                    <div class="flex items-center gap-1 shrink-0">
                       <Show when={bucket.is_verified}>
                         <div class="badge badge-info badge-outline absolute top-[21px] right-[16px] z-10">
                           <Shield class="w-3 h-3 mr-1" />
@@ -166,7 +158,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                 }
                 description={
                   <>
-                    <p class="text-sm  line-clamp-2 mb-4 min-h-[2.5rem]">
+                    <p class="text-sm line-clamp-2 mb-4 min-h-10">
                       {bucket.description || t("bucket.search_results.no_description")}
                     </p>
 
@@ -197,7 +189,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                     <Show when={bucket.last_updated !== "Unknown"}>
                       <div class="flex items-center gap-1 text-xs text-base-content/60 border-b pb-3 mb-3">
                         <Clock class="w-3 h-3" />
-                        <span>{t("bucket.search_results.updated", { date: formatDate(bucket.last_updated) })}</span>
+                        <span>{t("bucket.search_results.updated", { date: formatBucketDate(bucket.last_updated) })}</span>
                       </div>
                     </Show>
                   </>

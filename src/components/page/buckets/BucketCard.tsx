@@ -3,6 +3,7 @@ import { RefreshCw, Eye } from "lucide-solid";
 import { BucketInfo } from "../../../hooks/useBuckets";
 import { openPath } from '@tauri-apps/plugin-opener';
 import Card from "../../common/Card";
+import { formatBucketDate } from "../../../utils/date";
 import { t } from "../../../i18n";
 
 interface BucketCardProps {
@@ -14,22 +15,17 @@ interface BucketCardProps {
 }
 
 function BucketCard(props: BucketCardProps) {
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "Unknown";
-    return new Date(dateString).toLocaleDateString();
-  };
-
   return (
     <div class="relative">
       <Show when={props.bucket.git_branch}>
-        <div class="badge badge-outline badge-sm absolute top-[21px] right-[16px] z-10">
+        <div class="badge badge-outline badge-sm absolute top-[21px] right-[16px] z-10 bg-base-100/90 backdrop-blur-sm">
           {props.bucket.git_branch}
         </div>
       </Show>
 
       <Card
         title={
-          <h3 class="whitespace-nowrap overflow-hidden text-ellipsis max-w-full" title={props.bucket.name}>
+          <h3 class="whitespace-nowrap overflow-hidden text-ellipsis" title={props.bucket.name}>
             {props.bucket.name}
           </h3>
         }
@@ -43,7 +39,7 @@ function BucketCard(props: BucketCardProps) {
             </div>
             <Show when={props.bucket.last_updated}>
               <div class="text-xs text-base-content/50">
-                {t("bucket.card.updated", { date: formatDate(props.bucket.last_updated) })}
+                {t("bucket.card.updated", { date: formatBucketDate(props.bucket.last_updated) })}
               </div>
             </Show>
           </div>

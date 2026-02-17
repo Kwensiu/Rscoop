@@ -39,17 +39,33 @@ fn get_git_info(bucket_path: &Path) -> (Option<String>, Option<String>) {
     (git_url, git_branch)
 }
 
-/// Gets the last modified time of a directory.
-fn get_last_updated(path: &Path) -> Option<String> {
-    fs::metadata(path)
-        .and_then(|m| m.modified())
-        .map(|t| {
-            use chrono::{DateTime, Utc};
-            DateTime::<Utc>::from(t)
-                .format("%Y-%m-%d %H:%M:%S UTC")
-                .to_string()
-        })
-        .ok()
+/// Gets the last modified time of a bucket's bucket subdirectory.
+fn get_last_updated(bucket_path: &Path) -> Option<String> {
+    // Check the bucket subdirectory instead of the bucket directory itself
+    let bucket_subdir = bucket_path.join("bucket");
+    
+    if bucket_subdir.is_dir() {
+        fs::metadata(&bucket_subdir)
+            .and_then(|m| m.modified())
+            .map(|t| {
+                use chrono::{DateTime, Utc};
+                DateTime::<Utc>::from(t)
+                    .format("%Y-%m-%d %H:%M:%S UTC")
+                    .to_string()
+            })
+            .ok()
+    } else {
+        // Fallback to the bucket directory if bucket subdirectory doesn't exist
+        fs::metadata(bucket_path)
+            .and_then(|m| m.modified())
+            .map(|t| {
+                use chrono::{DateTime, Utc};
+                DateTime::<Utc>::from(t)
+                    .format("%Y-%m-%d %H:%M:%S UTC")
+                    .to_string()
+            })
+            .ok()
+    }
 }
 
 /// Loads information for a single bucket from its directory.
