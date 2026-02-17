@@ -4,8 +4,39 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime, Manager};
 use tauri_plugin_store::{Store, StoreExt};
+use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::aead::{Aead, KeyInit};
+use base64::{Engine as _, engine::general_purpose};
 
 const STORE_PATH: &str = "store.json";
+
+// Fixed application-level encryption key (32 bytes for AES-256)
+// This is a simple approach following KISS principle - in production, consider using system keychain
+const ENCRYPTION_KEY: &[u8; 32] = b"RscoopSecureKeyForAPIStorage2024";
+
+fn encrypt_api_key(key: &str) -> Result<String, String> {
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(ENCRYPTION_KEY));
+    let nonce = Nonce::from_slice(b"unique nonce"); // Fixed nonce for simplicity
+
+    let ciphertext = cipher.encrypt(nonce, key.as_bytes())
+        .map_err(|e| format!("Encryption failed: {}", e))?;
+
+    Ok(general_purpose::STANDARD.encode(&ciphertext))
+}
+
+fn decrypt_api_key(encrypted_key: &str) -> Result<String, String> {
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(ENCRYPTION_KEY));
+    let nonce = Nonce::from_slice(b"unique nonce");
+
+    let ciphertext = general_purpose::STANDARD.decode(encrypted_key)
+        .map_err(|e| format!("Base64 decode failed: {}", e))?;
+
+    let plaintext = cipher.decrypt(nonce, ciphertext.as_ref())
+        .map_err(|e| format!("Decryption failed: {}", e))?;
+
+    String::from_utf8(plaintext)
+        .map_err(|e| format!("UTF-8 decode failed: {}", e))
+}
 
 /// A helper function to reduce boilerplate when performing a write operation on the store.
 ///
@@ -249,16 +280,29 @@ pub fn update_scoop_config(config: serde_json::Value) -> Result<(), String> {
 }
 
 /// Gets the VirusTotal API key from Scoop's `config.json`.
+/// The key is stored encrypted for security.
 #[tauri::command]
 pub fn get_virustotal_api_key() -> Result<Option<String>, String> {
     let config = read_scoop_config()?;
-    Ok(config
-        .get("virustotal_api_key")
-        .and_then(|v| v.as_str().map(String::from)))
+    match config.get("virustotal_api_key").and_then(|v| v.as_str()) {
+        Some(encrypted_key) => {
+            // Try to decrypt the key
+            match decrypt_api_key(encrypted_key) {
+                Ok(decrypted_key) => Ok(Some(decrypted_key)),
+                Err(e) => {
+                    // If decryption fails, it might be a legacy unencrypted key
+                    // Return as-is for backward compatibility
+                    log::warn!("Failed to decrypt API key, treating as unencrypted: {}", e);
+                    Ok(Some(encrypted_key.to_string()))
+                }
+            }
+        }
+        None => Ok(None),
+    }
 }
 
 /// Sets the VirusTotal API key in Scoop's `config.json`.
-///
+/// The key is stored encrypted for security.
 /// If the key is an empty string, it removes the `virustotal_api_key` field.
 #[tauri::command]
 pub fn set_virustotal_api_key(key: String) -> Result<(), String> {
@@ -266,7 +310,9 @@ pub fn set_virustotal_api_key(key: String) -> Result<(), String> {
     if key.is_empty() {
         config.remove("virustotal_api_key");
     } else {
-        config.insert("virustotal_api_key".to_string(), serde_json::json!(key));
+        // Encrypt the API key before storing
+        let encrypted_key = encrypt_api_key(&key)?;
+        config.insert("virustotal_api_key".to_string(), serde_json::json!(encrypted_key));
     }
     write_scoop_config(&config)
 }
