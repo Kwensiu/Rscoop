@@ -1,16 +1,24 @@
-# Release Notes 1.5.9
+# Release Notes
 
-## [1.5.9] - 2026-02-11
+## [1.6.0] - 2026-02-18
 
 ### Added
-- **NSIS Installer Support**: Added locale path support for NSIS installer
-- **UI Enhancements**: Enhanced package grid UI for better user experience
+- **AES Encryption**: Implemented AES encryption for VirusTotal API key storage to enhance security
+- **Cache Clearing Logic**: Added cache clearing functionality and improved internationalization support
 
 ### Changed
-- **Localization Improvements**: Reorganized localization files and refactored variable naming in i18n.rs
-- **Code Refactoring**: 
-  - Adjusted logging levels for better debugging
-  - Wrapped SolidJS stores in createRoot for improved reactivity
-  - Removed duplicate data fetching logic in ScoopInfo component's saveConfig method
+- **Core Refactoring**: 
+  - Renamed `createStoredSignal` to `createTauriSignal` for better naming consistency
+  - Simplified AboutSection update system
+  - Extracted command execution state to operations store
+  - Unified bucket date formatting logic
+- **UI/UX Improvements**:
+  - Optimized installed packages page user experience
+  - Persisted Scoop config in localStorage to prevent doctor page flickering
+- **Internationalization**: Enhanced i18n support across the application
 
-This release focuses on UI improvements, better localization handling, and code quality enhancements through refactoring.
+### Fixed
+- **OperationModal Display**: Ensured OperationModal displays properly for cleanup commands
+- **Version Comparison**: Fixed semantic version comparison in auto cleanup functionality
+
+This release focuses on security enhancements, core refactoring for better maintainability, and improved user experience through UI optimizations and bug fixes.
