@@ -100,15 +100,27 @@ const refetch = async () => {
 const silentRefetch = async () => {
   setError(null);
   try {
-    const installedPackages = await invoke<ScoopPackage[]>("refresh_installed_packages");
-    setPackages(installedPackages);
+    // 并行获取包数据和更新信息
+    const [installedPackages, updateInfo] = await Promise.all([
+      invoke<ScoopPackage[]>("refresh_installed_packages"),
+      invoke<UpdatablePackage[]>("check_for_updates").catch(() => [])
+    ]);
+
+    // 一次性合并数据
+    const packagesWithUpdates = installedPackages.map(pkg => ({
+      ...pkg,
+      available_version: updateInfo.find(u => u.name === pkg.name)?.available
+    }));
+
+    // 一次性设置完整数据
+    setPackages(packagesWithUpdates);
     const buckets = new Set<string>(installedPackages.map(p => p.source));
     setUniqueBuckets(['all', ...Array.from(buckets).sort()]);
     setIsLoaded(true);
 
+    // 静默更新其他状态
     await Promise.all([
       heldStore.refetch(),
-      checkForUpdates(),
       fetchVersionedPackages()
     ]);
   } catch (err) {

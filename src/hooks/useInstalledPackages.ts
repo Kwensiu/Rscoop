@@ -1,6 +1,6 @@
 import { createSignal, onMount, createMemo, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { createStoredSignal } from "./createStoredSignal";
+import { createLocalStorageSignal } from "./createLocalStorageSignal";
 import heldStore from "../stores/held";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import { usePackageOperations } from "./usePackageOperations";
@@ -47,10 +47,10 @@ export function useInstalledPackages() {
   // State for auto-showing versions in modal
   const [autoShowVersions, setAutoShowVersions] = createSignal(false);
 
-  const [viewMode, setViewMode] = createStoredSignal<'grid' | 'list'>('installedViewMode', 'grid');
-  const [sortKey, setSortKey] = createStoredSignal<SortKey>('installedSortKey', 'name');
-  const [sortDirection, setSortDirection] = createStoredSignal<'asc' | 'desc'>('installedSortDirection', 'asc');
-  const [selectedBucket, setSelectedBucket] = createStoredSignal<string>('installedSelectedBucket', 'all');
+  const [viewMode, setViewMode] = createLocalStorageSignal<'grid' | 'list'>('installedViewMode', 'grid');
+  const [sortKey, setSortKey] = createLocalStorageSignal<SortKey>('installedSortKey', 'name');
+  const [sortDirection, setSortDirection] = createLocalStorageSignal<'asc' | 'desc'>('installedSortDirection', 'asc');
+  const [selectedBucket, setSelectedBucket] = createLocalStorageSignal<string>('installedSelectedBucket', 'all');
   
   // Change bucket states
   const [changeBucketModalOpen, setChangeBucketModalOpen] = createSignal(false);
@@ -86,12 +86,12 @@ export function useInstalledPackages() {
     }
   };
 
-  const fetchInstalledPackages = (silent: boolean = false) => {
+  const fetchInstalledPackages = async (silent: boolean = false): Promise<void> => {
     if (silent) {
       // Silent refresh: only update packages without showing loading state
-      silentRefetch();
+      await silentRefetch();
     } else {
-      refetch();
+      await refetch();
     }
   }
 
@@ -202,7 +202,7 @@ export function useInstalledPackages() {
     setChangeBucketModalOpen(false);
   };
 
-  const handleCloseOperationModal = async (wasSuccess: boolean) => {
+  const handleCloseOperationModal = async (_operationId: string, wasSuccess: boolean) => {
     packageOperations.closeOperationModal(wasSuccess);
     if (wasSuccess) {
       await refetch();
@@ -234,12 +234,13 @@ export function useInstalledPackages() {
     const direction = sortDirection();
     const sortedPkgs = [...pkgs];
     sortedPkgs.sort((a, b) => {
-      if (key === 'name') {
-        const aHasUpdate = !!a.available_version && !heldStore.isHeld(a.name) && !a.is_versioned_install;
-        const bHasUpdate = !!b.available_version && !heldStore.isHeld(b.name) && !b.is_versioned_install;
-        if (aHasUpdate && !bHasUpdate) return -1;
-        if (!aHasUpdate && bHasUpdate) return 1;
-      }
+      // 可更新应用始终优先显示，无论什么排序字段
+      const aHasUpdate = !!a.available_version && !heldStore.isHeld(a.name) && !a.is_versioned_install;
+      const bHasUpdate = !!b.available_version && !heldStore.isHeld(b.name) && !b.is_versioned_install;
+      if (aHasUpdate && !bHasUpdate) return -1;
+      if (!aHasUpdate && bHasUpdate) return 1;
+
+      // 可更新应用排序完成后，按正常逻辑排序
       const valA = a[key].toLowerCase();
       const valB = b[key].toLowerCase();
       if (valA < valB) return direction === 'asc' ? -1 : 1;

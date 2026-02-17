@@ -17,11 +17,26 @@ export function createStoredSignal<T>(
   initialValue: T,
 ): Signal<T> {
   return createRoot(() => {
-    const [value, setValue] = createSignal<T>(initialValue);
+    // Try to get initial value synchronously from localStorage first
+    let syncInitialValue = initialValue;
+    try {
+      const localStorageValue = localStorage.getItem(key);
+      if (localStorageValue !== null) {
+        try {
+          syncInitialValue = JSON.parse(localStorageValue) as T;
+        } catch {
+          syncInitialValue = localStorageValue as T;
+        }
+      }
+    } catch {
+      // Use initialValue if localStorage fails
+    }
+    
+    const [value, setValue] = createSignal<T>(syncInitialValue);
     let isLoaded = false;
     let isLoading = true;
     
-    console.log(`createStoredSignal: Creating signal for key "${key}" with initial value:`, initialValue);
+    console.log(`createStoredSignal: Creating signal for key "${key}" with initial value:`, syncInitialValue);
     
     // Immediately attempt to load value from store, don't wait for onMount
     (async () => {
@@ -78,7 +93,7 @@ export function createStoredSignal<T>(
     })();
 
     // This effect runs whenever the signal's value changes,
-    // updating the value in Tauri store.
+    // updating value in Tauri store.
     createEffect(() => {
       const currentValue = value();
       // Only save after loading is complete, avoid saving initial default value
@@ -89,6 +104,16 @@ export function createStoredSignal<T>(
             const store = await getStore();
             await store.set(key, currentValue);
             console.log(`createStoredSignal: Successfully saved "${key}"`);
+            // Also save to localStorage for immediate sync access
+            try {
+              if (typeof currentValue === 'string') {
+                localStorage.setItem(key, currentValue);
+              } else {
+                localStorage.setItem(key, JSON.stringify(currentValue));
+              }
+            } catch (localStorageError) {
+              console.error(`Error saving ${key} to localStorage sync:`, localStorageError);
+            }
           } catch (error) {
             console.error(`Error saving ${key} to store:`, error);
             // Fallback to localStorage if Tauri store fails
