@@ -3,7 +3,6 @@ import { View } from "../types/scoop.ts";
 import { Package, Search, Settings, Stethoscope, FolderOpen } from "lucide-solid";
 import installedPackagesStore from '../stores/installedPackagesStore';
 import { t } from "../i18n";
-import LanguageSelector from "./LanguageSelector";
 
 interface HeaderProps {
   currentView: View;
@@ -60,9 +59,6 @@ const Header: Component<HeaderProps> = (props) => {
             )}
           </For>
         </ul>
-      </div>
-      <div class="flex-none">
-        <LanguageSelector />
       </div>
     </div>
   );
