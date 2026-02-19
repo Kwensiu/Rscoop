@@ -1,5 +1,6 @@
 import { createSignal, createResource, createEffect, createRoot } from 'solid-js';
 import * as i18n from '@solid-primitives/i18n';
+import { invoke } from '@tauri-apps/api/core';
 import settingsStore from './stores/settings';
 
 export type Locale = 'en' | 'zh';
@@ -8,7 +9,10 @@ export type Locale = 'en' | 'zh';
 export interface Dict {
   welcome: string;
   greeting: string;
-  language: string;
+  language: {
+    title: string;
+    description: string;
+  };
   switch_to_chinese: string;
   switch_to_english: string;
   app: {
@@ -136,6 +140,10 @@ export interface Dict {
       invalid_directory: string;
       validation_error: string;
       validation_failed: string;
+    };
+    language: {
+      title: string;
+      description: string;
     };
     held_packages: {
       title: string;
@@ -270,7 +278,11 @@ const getInitialLocale = (): Locale => {
     return savedLocale as Locale;
   }
   
-  // If no saved locale, default to English to avoid system language detection
+  // If no saved locale, detect system language
+  const systemLang = navigator.language || navigator.languages?.[0] || 'en';
+  if (systemLang.startsWith('zh')) {
+    return 'zh';
+  }
   return 'en';
 };
 
@@ -290,10 +302,6 @@ const { locale, setLocale, dict, t } = createRoot(() => {
         localStorage.setItem('rscoop-language', currentLocale);
       } catch (error) {
         console.warn('Failed to save language to localStorage:', error);
-        // Revert to previous locale to maintain consistency
-        if (previousLocale !== currentLocale) {
-          setLocale(() => previousLocale as Locale);
-        }
       }
     }
   });
@@ -333,11 +341,26 @@ const { locale, setLocale, dict, t } = createRoot(() => {
 
 export { locale, setLocale, dict, t };
 
+const updateLanguage = async (newLang: Locale) => {
+  setLocale(newLang);
+
+  // Update backend store to trigger tray menu refresh
+  try {
+    await invoke('set_language_setting', { language: newLang });
+  } catch (error) {
+    console.error('Failed to update backend language setting:', error);
+  }
+
+  await settingsStore.setCoreSettings({ language: newLang });
+
+  localStorage.setItem('rscoop-language', newLang);
+};
+
 export const toggleLanguage = async () => {
   const newLocale = locale() === 'zh' ? 'en' : 'zh';
-  setLocale(newLocale);
+  await updateLanguage(newLocale);
+};
 
-  await settingsStore.setCoreSettings({ language: newLocale });
-
-  localStorage.setItem('rscoop-language', newLocale);
+export const setLanguage = async (lang: Locale) => {
+  await updateLanguage(lang);
 };

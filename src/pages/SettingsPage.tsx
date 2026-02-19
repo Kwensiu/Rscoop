@@ -14,6 +14,7 @@ import ThemeSettings from "../components/page/settings/ThemeSettings";
 import UISettings from "../components/page/settings/UI Settings";
 import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
 import AppDataManagement from "../components/page/settings/AppDataManagement";
+import LanguageSettings from "../components/page/settings/LanguageSettings";
 import heldStore from "../stores/held";
 import { t } from "../i18n";
 import { createLocalStorageSignal } from "../hooks/createLocalStorageSignal";
@@ -109,6 +110,7 @@ function SettingsPage(props: SettingsPageProps) {
                     <Show when={activeTab() === 'window'}>
                         <div class="space-y-6">
                             <ThemeSettings />
+                            <LanguageSettings />
                             <WindowBehaviorSettings />
                             <StartupSettings />
                             <DefaultLaunchPageSettings />
